@@ -770,7 +770,35 @@ header nav a:hover { text-decoration: underline; }
 
 .btn-danger:hover { background-color: #b71c1c; }
 
-/* === 15. FOOTER === */
+.btn-block {
+    width: 100%;
+}
+
+/* === 15. ADMIN LOGIN === */
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 50vh;
+    padding: 2rem 1rem;
+}
+
+.login-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+    padding: 2.5rem;
+    max-width: 400px;
+    width: 100%;
+}
+
+.login-card h2 {
+    text-align: center;
+    margin-bottom: 1rem;
+    color: #2E7D32;
+}
+
+/* === 16. FOOTER === */
 footer {
     background: #1b1b1b;
     color: #aaa;
@@ -787,7 +815,7 @@ footer {
 }
 
 
-/* === 16. RESPONSIVE (Mobile) === */
+/* === 17. RESPONSIVE (Mobile) === */
 /*
   Media queries let us apply CSS only when the screen
   is at or below a certain width. 600px is a common
@@ -806,7 +834,33 @@ footer {
     .hero h2 { font-size: 1.5rem; }
     .hero { padding: 3rem 1rem; }
     .search-container { flex-direction: column; }
-    .form-row { grid-template-columns: 1fr; }    /* side-by-side → stacked */
+    .form-row { grid-template-columns: 1fr; }
     .detail-img { height: 220px; }
     .city-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+
+    /* Admin responsive */
+    .admin-table {
+        font-size: 0.8rem;
+    }
+    .admin-table th,
+    .admin-table td {
+        padding: 0.5rem 0.4rem;
+    }
+    .admin-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    .admin-actions .btn-sm {
+        margin-right: 0;
+    }
+    .admin-stats {
+        flex-direction: column;
+    }
+    .admin-stat-card {
+        min-width: auto;
+    }
+    .login-card {
+        padding: 1.5rem;
+    }
 }

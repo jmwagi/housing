@@ -42,6 +42,10 @@ const AppState = {
     // ID of the listing currently being edited in the admin page (null = not editing)
     editingListingId: null,
 
+    // Admin authentication
+    adminLoggedIn: localStorage.getItem('admin_logged_in') === 'true',
+    adminPassword: localStorage.getItem('admin_password') || 'admin123',
+
     // Current filter selections
     filters: {
         listing_type: null,   // "bedsit", "single_room", "one_bedroom", or null

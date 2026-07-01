@@ -11,12 +11,13 @@
 
   URL PATTERNS:
   #/                          → Home (area grid + featured listings)
-  #/browse                    → Browse all Embu listings
-  #/browse?area=Gakwegori     → Browse listings in a specific area
-  #/browse?search=near gate   → Browse with search
-  #/listing/3                 → Detail for listing ID 3
-  #/add                       → Add listing form
-  #/about                     → About / safety page
+   #/browse                    → Browse all Embu listings
+   #/browse?area=Gakwegori     → Browse listings in a specific area
+   #/browse?search=near gate   → Browse with search
+   #/listing/3                 → Detail for listing ID 3
+   #/add                       → Add listing form
+   #/about                     → About / safety page
+   #/jadmin                    → Admin dashboard (password-protected)
 */
 
 
@@ -99,7 +100,7 @@ async function router() {
                 */
                 const [areas, listings] = await Promise.all([
                     apiGetAreas(),
-                    apiGetListings({ city: 'Embu' }),
+                    apiGetListings({ city: 'Embu', verified: 'true' }),
                 ]);
                 AppState.areas = areas;
                 AppState.listings = listings;
@@ -121,7 +122,7 @@ async function router() {
                   Build API parameters.
                   Default city is always "Embu" for this app.
                 */
-                const browseParams = { city: 'Embu' };
+                const browseParams = { city: 'Embu', verified: 'true' };
                 if (AppState.currentArea) browseParams.area = AppState.currentArea;
                 if (AppState.filters.search) browseParams.search = AppState.filters.search;
                 if (AppState.filters.listing_type) browseParams.listing_type = AppState.filters.listing_type;
@@ -158,13 +159,17 @@ async function router() {
                 app.innerHTML = renderAbout();
                 break;
 
-            // ========== ADMIN DASHBOARD ==========
-            case '/admin':
-                const allListings = await apiGetListings();
-                const allAreas = await apiGetAreas();
-                AppState.listings = allListings;
-                AppState.areas = allAreas;
-                app.innerHTML = renderAdmin();
+            // ========== ADMIN DASHBOARD (password-protected) ==========
+            case '/jadmin':
+                if (!AppState.adminLoggedIn) {
+                    app.innerHTML = renderAdminLogin();
+                } else {
+                    const allListings = await apiGetListings();
+                    const allAreas = await apiGetAreas();
+                    AppState.listings = allListings;
+                    AppState.areas = allAreas;
+                    app.innerHTML = renderAdmin();
+                }
                 break;
 
             // ========== 404 - PAGE NOT FOUND ==========
@@ -441,4 +446,70 @@ async function deleteArea(id) {
     } catch (err) {
         resultDiv.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
     }
+}
+
+/**
+ * Admin login: checks password against AppState.adminPassword.
+ * On success, sets adminLoggedIn = true and navigates to #/jadmin.
+ */
+function adminLogin() {
+    const input = document.getElementById('admin-login-password');
+    const error = document.getElementById('admin-login-error');
+    const pw = input ? input.value : '';
+
+    if (pw === AppState.adminPassword) {
+        AppState.adminLoggedIn = true;
+        localStorage.setItem('admin_logged_in', 'true');
+        navigate('#/jadmin');
+    } else {
+        if (error) {
+            error.textContent = 'Incorrect password. Try again.';
+            error.style.display = 'block';
+        }
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+    }
+}
+
+/**
+ * Admin logout: clears login state and navigates to home.
+ */
+function adminLogout() {
+    AppState.adminLoggedIn = false;
+    localStorage.setItem('admin_logged_in', 'false');
+    navigate('#/');
+}
+
+/**
+ * Change admin password.
+ * Validates current password, new password match, then updates
+ * AppState.adminPassword and localStorage.
+ */
+function changePassword() {
+    const currentPw = document.getElementById('admin-current-password').value;
+    const newPw = document.getElementById('admin-new-password').value;
+    const confirmPw = document.getElementById('admin-confirm-password').value;
+    const result = document.getElementById('admin-password-result');
+
+    if (currentPw !== AppState.adminPassword) {
+        result.innerHTML = '<div class="alert alert-error">Current password is incorrect.</div>';
+        return;
+    }
+    if (!newPw || newPw.length < 4) {
+        result.innerHTML = '<div class="alert alert-error">New password must be at least 4 characters.</div>';
+        return;
+    }
+    if (newPw !== confirmPw) {
+        result.innerHTML = '<div class="alert alert-error">New passwords do not match.</div>';
+        return;
+    }
+
+    AppState.adminPassword = newPw;
+    localStorage.setItem('admin_password', newPw);
+    document.getElementById('admin-current-password').value = '';
+    document.getElementById('admin-new-password').value = '';
+    document.getElementById('admin-confirm-password').value = '';
+    result.innerHTML = '<div class="alert alert-success">✅ Password updated successfully.</div>';
 }

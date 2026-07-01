@@ -60,6 +60,7 @@ async def list_listings(
     min_price: Optional[float] = None,    # Minimum price (KSh)
     max_price: Optional[float] = None,    # Maximum price (KSh)
     listing_type: Optional[str] = None,   # "bedsit", "single_room", "one_bedroom"
+    verified: Optional[bool] = None,      # Filter by verification status (admin: show all, public: show only verified)
     search: Optional[str] = None,         # Text search across title, area, description, city
     db: AsyncSession = Depends(get_db),   # Database session from FastAPI dependency injection
 ):
@@ -93,6 +94,9 @@ async def list_listings(
     if listing_type:
         # Exact match on listing_type
         stmt = stmt.where(Listing.listing_type == listing_type)
+    if verified is not None:
+        # Filter by verification status (True = verified, False = unverified)
+        stmt = stmt.where(Listing.verified == verified)
     if search:
         # Search across multiple fields using OR (|)
         like = f"%{search}%"

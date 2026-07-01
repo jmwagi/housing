@@ -78,6 +78,7 @@ function apiGetListings(params = {}) {
     if (params.min_price) qs.set('min_price', params.min_price);
     if (params.max_price) qs.set('max_price', params.max_price);
     if (params.listing_type) qs.set('listing_type', params.listing_type);
+    if (params.verified) qs.set('verified', params.verified);
     if (params.search) qs.set('search', params.search);
 
     const query = qs.toString();

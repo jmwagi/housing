@@ -433,12 +433,38 @@ function renderAbout() {
 }
 
 /**
+ * Render the Admin Login page.
+ * Shows a password form to access the admin dashboard.
+ * On submit, calls adminLogin() from router.js which
+ * checks against AppState.adminPassword.
+ */
+function renderAdminLogin() {
+    return `
+        <div class="login-container">
+            <div class="login-card">
+                <h2>🔐 Admin Access</h2>
+                <p style="color:#666;margin-bottom:1.5rem;">Enter the admin password to manage listings and areas.</p>
+                <form id="admin-login-form" onsubmit="event.preventDefault(); adminLogin()">
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="admin-login-password" required placeholder="Enter admin password" autofocus>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Unlock Dashboard</button>
+                    <div id="admin-login-error" style="color:#c62828;margin-top:0.8rem;display:none;"></div>
+                </form>
+            </div>
+        </div>
+    `;
+}
+
+/**
  * Render the Admin Dashboard.
  * Shows:
  *   1. Stats cards (total, verified, areas)
  *   2. Area management (add/remove areas)
- *   3. Edit form (if a listing is selected for editing)
- *   4. Full listings table with management actions
+ *   3. Change password
+ *   4. Edit form (if a listing is selected for editing)
+ *   5. Full listings table with management actions
  */
 function renderAdmin() {
     const listings = AppState.listings;
@@ -495,6 +521,20 @@ function renderAdmin() {
                 <button type="submit" class="btn btn-primary btn-sm">Add Area</button>
             </form>
             <div id="admin-area-result" style="margin-top:0.5rem;"></div>
+        </div>
+    `;
+
+    // Change password section
+    const changePasswordHtml = `
+        <div class="admin-section">
+            <h3>Change Password</h3>
+            <form id="admin-change-password-form" onsubmit="event.preventDefault(); changePassword()" style="display:flex;flex-direction:column;gap:0.5rem;max-width:400px;">
+                <input type="password" id="admin-current-password" placeholder="Current password" required style="padding:0.5rem;border:1px solid #ddd;border-radius:4px;">
+                <input type="password" id="admin-new-password" placeholder="New password" required style="padding:0.5rem;border:1px solid #ddd;border-radius:4px;">
+                <input type="password" id="admin-confirm-password" placeholder="Confirm new password" required style="padding:0.5rem;border:1px solid #ddd;border-radius:4px;">
+                <button type="submit" class="btn btn-primary btn-sm">Update Password</button>
+                <div id="admin-password-result" style="margin-top:0.5rem;"></div>
+            </form>
         </div>
     `;
 
@@ -588,6 +628,7 @@ function renderAdmin() {
                     <td>${l.landlord_name}</td>
                     <td>${verifiedLabel}</td>
                     <td class="admin-actions">
+                        <button class="btn btn-sm" onclick="navigate('#/listing/${l.id}')">👁 View</button>
                         <button class="btn btn-sm" onclick="editListing(${l.id})">✎ Edit</button>
                         <button class="btn btn-sm ${l.verified ? 'btn-warning' : 'btn-primary'}" onclick="toggleVerify(${l.id}, ${l.verified})">
                             ${l.verified ? 'Unverify' : 'Verify'}
@@ -601,12 +642,16 @@ function renderAdmin() {
 
     return `
         <div class="admin-container">
-            <h2>Admin Dashboard</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+                <h2>Admin Dashboard</h2>
+                <button class="btn btn-sm btn-danger" onclick="adminLogout()" style="font-size:0.85rem;">🚪 Logout</button>
+            </div>
             <div class="admin-section admin-intro">
                 <p>Manage listings and areas on CampusHaven KE. Use the table below to edit, verify, or delete listings. Use the <strong>Manage Areas</strong> section to add or remove neighbourhoods — new areas appear immediately in the add-listing form dropdown.</p>
             </div>
             ${statsHtml}
             ${areaManagementHtml}
+            ${changePasswordHtml}
             ${editFormHtml}
             <div class="admin-table-wrapper">
                 <table class="admin-table">
