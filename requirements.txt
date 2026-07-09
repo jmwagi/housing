@@ -6,5 +6,6 @@ asyncpg
 python-multipart
 pydantic
 greenlet
-passlib[bcrypt]
+passlib
+bcrypt==4.0.1
 python-jose[cryptography]
