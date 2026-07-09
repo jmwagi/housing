@@ -25,14 +25,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database import get_db
 from backend.models import Listing
 from backend.schemas import ContactRequest
+from backend.routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/contact", tags=["contact"])
 
 
 @router.post("/{listing_id}")
 async def contact_landlord(
-    listing_id: int,                              # Which listing the student is enquiring about
-    data: ContactRequest,                         # Student's name, phone, message
+    listing_id: int,
+    data: ContactRequest,
+    current_user = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """

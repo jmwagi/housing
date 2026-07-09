@@ -30,7 +30,8 @@
   - DateTime:  date and time
 """
 
-from sqlalchemy import Column, Integer, String, Float, Boolean, Text, DateTime, func
+from sqlalchemy import Column, Integer, String, Float, Boolean, Text, DateTime, ForeignKey, func
+from sqlalchemy.orm import relationship
 from backend.database import Base
 
 
@@ -57,6 +58,8 @@ class Listing(Base):
     # Location
     city = Column(String(100), nullable=False)         # e.g., "Nairobi", "Embu"
     area = Column(String(200), nullable=False)         # e.g., "Kileleshwa", "Gakwegori"
+    latitude = Column(Float, nullable=True)            # Map coordinate
+    longitude = Column(Float, nullable=True)           # Map coordinate
 
     # Type of listing
     # Stored as string code: "bedsit", "single_room", or "one_bedroom"
@@ -74,11 +77,41 @@ class Listing(Base):
     landlord_name = Column(String(200), nullable=False)
     landlord_phone = Column(String(50), nullable=False)
 
+    # Ownership — links to the User who created this listing
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    owner = relationship("User", backref="listings")
+
     # Timestamps — automatically set by the database
     # server_default=func.now() means the DB sets the time on INSERT
     # onupdate=func.now() means the DB updates on every UPDATE
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    listing_id = Column(Integer, ForeignKey("listings.id"), nullable=False, index=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User", backref="favorites")
+    listing = relationship("Listing", backref="favorites")
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(200), unique=True, nullable=False, index=True)
+    password_hash = Column(String(200), nullable=False)
+    full_name = Column(String(200), nullable=False)
+    phone = Column(String(50), nullable=False)
+    role = Column(String(20), nullable=False)        # "student" or "landlord"
+    id_number = Column(String(50), nullable=True)    # For landlords
+    is_verified = Column(Boolean, default=False)     # Admin-verified landlord
+    created_at = Column(DateTime, server_default=func.now())
 
 
 class Area(Base):
@@ -93,3 +126,5 @@ class Area(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), unique=True, nullable=False)
+    latitude = Column(Float, nullable=True)           # Center coordinate for map
+    longitude = Column(Float, nullable=True)          # Center coordinate for map

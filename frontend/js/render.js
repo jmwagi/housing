@@ -45,38 +45,46 @@ function renderError(message) {
  * @param {object} listing - A listing object from the API
  * @returns {string} - HTML string for one card
  */
+function isFavorited(listingId) {
+    return AppState.favoriteIds.has(listingId);
+}
+
 function renderCard(listing) {
     const imgStyle = listing.images
         ? `style="background-image: url('${imageUrl(listing.images.split(',')[0])}');"`
         : '';
     const imgContent = listing.images
         ? ''
-        : '<div class="placeholder-img">🏠</div>';
+        : '<div class="placeholder-img"><i class="fas fa-home" style="font-size:2rem;color:#fff;"></i></div>';
     const verified = listing.verified
         ? '<span class="verified-badge">✓ Verified</span>'
         : '';
     const typeLabel = {
         bedsit: 'Bedsit',
         single_room: 'Single Room',
-        one_bedroom: '1-Bedroom'
+        one_bedroom: '1-Bedroom',
+        hostel: 'Hostel',
     }[listing.listing_type] || listing.listing_type;
 
     const amenities = listing.amenities
         ? listing.amenities.split(',').map(a => `<span class="amenity">${a.trim()}</span>`).join('')
         : '';
 
-    // NOTE: listing.city is always "Embu" for this app,
-    // so we only show the area name in the location line.
+    const favHeart = AppState.isLoggedIn
+        ? `<span class="fav-heart ${isFavorited(listing.id) ? 'fav-active' : ''}" onclick="event.stopPropagation(); toggleFavorite(${listing.id})">${isFavorited(listing.id) ? '<i class="fas fa-heart"></i>' : '<i class="far fa-heart"></i>'}</span>`
+        : '';
+
     return `
         <div class="card" onclick="navigate('#/listing/${listing.id}')">
             <div class="card-img" ${imgStyle}>
+                ${favHeart}
                 ${imgContent}
                 ${verified}
             </div>
             <div class="card-content">
                 <div class="price">KSh ${listing.price.toLocaleString()} / month</div>
                 <div class="title">${listing.title}</div>
-                <div class="location">📍 ${listing.area}, ${listing.city}</div>
+                <div class="location"><i class="fas fa-map-marker-alt" style="color:#e74c3c;"></i> ${listing.area}, ${listing.city}</div>
                 <div class="amenities">${amenities}</div>
             </div>
         </div>
@@ -102,7 +110,7 @@ function renderHome() {
     const areaCards = areas.length
         ? areas.map(a => `
             <div class="city-card" onclick="navigate('#/browse?area=${encodeURIComponent(a.name)}')">
-                <div class="icon">📍</div>
+                <div class="icon"><i class="fas fa-map-marker-alt" style="color:#e74c3c;"></i></div>
                 <div class="name">${a.name}</div>
                 <div class="count">${a.count} listing${a.count !== 1 ? 's' : ''}</div>
             </div>
@@ -143,6 +151,20 @@ function doHomeSearch() {
 }
 
 /**
+ * Search from the browse page — reads the search input
+ * and navigates to browse with the search query.
+ */
+function doBrowseSearch() {
+    const q = document.getElementById('browse-search-input')?.value.trim();
+    if (q) {
+        AppState.filters.search = q;
+    } else {
+        AppState.filters.search = null;
+    }
+    navigateToBrowse();
+}
+
+/**
  * Render the Browse page (Embu Edition).
  * Shows listings filtered by area, type, and price range.
  *
@@ -165,48 +187,57 @@ function renderBrowse() {
         ? `Listings in ${activeArea}`
         : 'All Listings in Embu';
 
-    // Define available filter options
-    const filterTypes = [
-        { key: null, label: 'All' },
-        { key: 'bedsit', label: 'Bedsits' },
-        { key: 'single_room', label: 'Single Rooms' },
-        { key: 'one_bedroom', label: '1-Bedroom' },
-    ];
+    // Type filter dropdown
+    const typeDropdown = `
+        <select class="filter-select" onchange="setFilter('listing_type', this.value)">
+            <option value="" ${!activeType ? 'selected' : ''}>All Types</option>
+            <option value="bedsit" ${activeType === 'bedsit' ? 'selected' : ''}>Bedsits</option>
+            <option value="single_room" ${activeType === 'single_room' ? 'selected' : ''}>Single Rooms</option>
+            <option value="one_bedroom" ${activeType === 'one_bedroom' ? 'selected' : ''}>1-Bedroom</option>
+            <option value="hostel" ${activeType === 'hostel' ? 'selected' : ''}>Hostels</option>
+        </select>
+    `;
 
-    const priceRanges = [
-        { min: null, max: null, label: 'Any Price' },
-        { min: null, max: 5000, label: 'Under KSh 5,000' },
-        { min: 5000, max: 8000, label: 'KSh 5,000 - 8,000' },
-        { min: 8000, max: null, label: 'KSh 8,000+' },
-    ];
-
-    // Type filter buttons
-    const typeFilters = filterTypes.map(t => {
-        const active = t.key === activeType ? 'active' : '';
-        return `<button class="filter-tag ${active}" onclick="setFilter('listing_type', '${t.key || ''}')">${t.label}</button>`;
-    }).join('');
-
-    // Price filter buttons
-    const priceFilters = priceRanges.map(p => {
-        const active = p.min === activeMin && p.max === activeMax ? 'active' : '';
-        return `<button class="filter-tag ${active}" onclick="setPriceFilter(${p.min ?? 'null'}, ${p.max ?? 'null'})">${p.label}</button>`;
-    }).join('');
+    // Price filter dropdown
+    const priceDropdown = `
+        <select class="filter-select" onchange="onPriceSelect(this.value)">
+            <option value="" ${!activeMin && !activeMax ? 'selected' : ''}>Any Price</option>
+            <option value="0-5000" ${activeMin === null && activeMax === 5000 ? 'selected' : ''}>Under KSh 5,000</option>
+            <option value="5000-8000" ${activeMin === 5000 && activeMax === 8000 ? 'selected' : ''}>KSh 5,000 - 8,000</option>
+            <option value="8000-" ${activeMin === 8000 && activeMax === null ? 'selected' : ''}>KSh 8,000+</option>
+        </select>
+    `;
 
     const listingsHtml = listings.length
         ? listings.map(renderCard).join('')
         : '<div class="empty-state">No listings match your filters. Try adjusting them!</div>';
 
+    // Area dropdown options
+    const areaOptions = AppState.areas && AppState.areas.length
+        ? `<option value="">All Areas</option>
+            ${AppState.areas.map(a =>
+                `<option value="${a.name}"${a.name === activeArea ? ' selected' : ''}>${a.name} (${a.count})</option>`
+            ).join('')}`
+        : '';
+
     return `
         <div class="container">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem;">
                 <h2>${title}</h2>
-                <a href="#/add" onclick="navigate('#/add')" style="font-weight:600;">+ List Your Room</a>
+            </div>
+            <div class="browse-search">
+                <input type="text" id="browse-search-input" placeholder="Search by title, area, description, or amenity..." value="${activeSearch}" onkeydown="if(event.key==='Enter') doBrowseSearch()">
+                <button onclick="doBrowseSearch()"><i class="fas fa-search"></i> Search</button>
             </div>
             <div class="filters">
-                <span>Type:</span>${typeFilters}
+                <span>Area:</span>
+                <select class="filter-select" onchange="setFilter('area', this.value)">
+                    ${areaOptions}
+                </select>
             </div>
             <div class="filters">
-                <span>Price:</span>${priceFilters}
+                ${typeDropdown}
+                ${priceDropdown}
             </div>
             ${activeSearch ? `<p style="margin-bottom:1rem;color:#666;">Search results for: <strong>"${activeSearch}"</strong></p>` : ''}
             <div class="listings-grid">${listingsHtml}</div>
@@ -231,7 +262,7 @@ function renderDetail() {
         : '';
     const imgContent = l.images
         ? ''
-        : '<div class="placeholder-img">🏠</div>';
+        : '<div class="placeholder-img"><i class="fas fa-home" style="font-size:3rem;color:#fff;"></i></div>';
     const verified = l.verified
         ? '<span class="verified-badge" style="font-size:0.85rem;">✓ Verified</span>'
         : '';
@@ -239,7 +270,8 @@ function renderDetail() {
     const typeLabel = {
         bedsit: 'Bedsit',
         single_room: 'Single Room',
-        one_bedroom: '1-Bedroom'
+        one_bedroom: '1-Bedroom',
+        hostel: 'Hostel',
     }[l.listing_type] || l.listing_type;
 
     const amenities = l.amenities
@@ -253,10 +285,11 @@ function renderDetail() {
       When submitted, it calls submitContact() from router.js
       via the onsubmit attribute. The listing ID is passed
       so the backend knows which landlord to notify.
+      Only logged-in users can send enquiries.
     */
-    const contactForm = `
+    const contactForm = AppState.isLoggedIn ? `
         <div class="contact-section">
-            <h3>Contact Landlord</h3>
+            <h3><i class="fas fa-envelope"></i> Contact Landlord</h3>
             <form id="contact-form" onsubmit="submitContact(event, ${l.id})">
                 <div class="form-group">
                     <label>Your Name</label>
@@ -270,21 +303,32 @@ function renderDetail() {
                     <label>Message (optional)</label>
                     <textarea id="contact-msg" placeholder="Hi, I'm interested in this room. Is it still available?"></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Send Enquiry</button>
+                <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-paper-plane"></i> Send Enquiry</button>
             </form>
             <div id="contact-result" style="margin-top:1rem;"></div>
+        </div>
+    ` : `
+        <div class="contact-section" style="text-align:center;padding:1.5rem;background:#f9f9f9;border-radius:8px;">
+            <p style="margin-bottom:0.8rem;"><i class="fas fa-sign-in-alt" style="font-size:1.5rem;color:#2E7D32;"></i></p>
+            <p style="font-weight:600;color:#333;">Sign in to contact the landlord</p>
+            <p style="font-size:0.9rem;color:#888;margin-bottom:1rem;">Create a free account to send enquiries and save your favourite listings.</p>
+            <a href="#/login" onclick="navigate('#/login')" class="btn btn-primary" style="text-decoration:none;display:inline-block;"><i class="fas fa-sign-in-alt"></i> Sign In</a>
+            <a href="#/register" onclick="navigate('#/register')" class="btn" style="text-decoration:none;display:inline-block;margin-left:0.5rem;background:#eee;"><i class="fas fa-user-plus"></i> Join Free</a>
         </div>
     `;
 
     return `
         <div class="detail-container">
-            <div class="back-link" onclick="navigate('#/browse${AppState.currentArea ? '?area=' + encodeURIComponent(AppState.currentArea) : ''}")">← Back to listings</div>
+            <div class="back-link" onclick="navigate('#/browse${AppState.currentArea ? '?area=' + encodeURIComponent(AppState.currentArea) : ''}")"><i class="fas fa-arrow-left"></i> Back to listings</div>
             <div class="detail-card">
                 <div class="detail-img" ${imgStyle}>${imgContent}</div>
                 <div class="detail-body">
-                    <div class="price">KSh ${l.price.toLocaleString()} / month</div>
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem;">
+                        <div class="price">KSh ${l.price.toLocaleString()} / month</div>
+                        ${AppState.isLoggedIn ? `<button class="btn btn-sm ${isFavorited(l.id) ? 'btn-primary' : ''}" onclick="toggleFavorite(${l.id})" style="font-size:1rem;">${isFavorited(l.id) ? '<i class="fas fa-heart"></i> Saved' : '<i class="far fa-heart"></i> Save'}</button>` : ''}
+                    </div>
                     <div class="title">${l.title}</div>
-                    <div class="location">📍 ${l.area}, ${l.city} ${verified}</div>
+                    <div class="location"><i class="fas fa-map-marker-alt" style="color:#e74c3c;"></i> ${l.area}, ${l.city} ${verified}</div>
                     <div class="detail-meta">
                         <div class="meta-item"><div class="label">Type</div><div class="value">${typeLabel}</div></div>
                         <div class="meta-item"><div class="label">Landlord</div><div class="value">${l.landlord_name}</div></div>
@@ -293,6 +337,13 @@ function renderDetail() {
                     <div class="description">${description}</div>
                     <h4 style="margin-bottom:0.5rem;">Amenities</h4>
                     <div class="amenities-list">${amenities}</div>
+                    ${l.latitude && l.longitude ? `
+                    <div class="map-section">
+                        <h4 style="margin-bottom:0.5rem;"><i class="fas fa-map-marker-alt" style="color:#e74c3c;"></i> Location</h4>
+                        <div id="detail-map" class="detail-map"></div>
+                        <p id="distance-text" style="font-size:0.85rem;color:#555;margin-top:0.3rem;"></p>
+                    </div>
+                    ` : ''}
                     ${contactForm}
                 </div>
             </div>
@@ -328,6 +379,8 @@ function getAreaOptions(selected) {
  * Landlords submit rooms with photos via multipart/form-data.
  */
 function renderAddListing() {
+    const nameValue = AppState.isLoggedIn && AppState.currentUser ? `value="${AppState.currentUser.full_name.replace(/"/g, '&quot;')}"` : '';
+    const phoneValue = AppState.isLoggedIn && AppState.currentUser ? `value="${AppState.currentUser.phone.replace(/"/g, '&quot;')}"` : '';
     return `
         <div class="form-container">
             <h2>List Your Room in Embu</h2>
@@ -362,6 +415,7 @@ function renderAddListing() {
                             <option value="bedsit">Bedsit</option>
                             <option value="single_room">Single Room</option>
                             <option value="one_bedroom">1-Bedroom</option>
+                            <option value="hostel">Hostel</option>
                         </select>
                     </div>
                 </div>
@@ -369,12 +423,22 @@ function renderAddListing() {
                     <label>Amenities</label>
                     <input type="text" id="add-amenities" placeholder="e.g. Wi-Fi, Inside Water, Gated Security">
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Latitude</label>
+                        <input type="text" id="add-latitude" placeholder="e.g. -0.5397 (optional)">
+                    </div>
+                    <div class="form-group">
+                        <label>Longitude</label>
+                        <input type="text" id="add-longitude" placeholder="e.g. 37.4598 (optional)">
+                    </div>
+                </div>
+                <p style="font-size:0.8rem;color:#888;margin-top:-0.5rem;margin-bottom:1rem;"><i class="fas fa-map-marker-alt" style="color:#e74c3c;"></i> Pin your listing on the map. <a href="https://www.google.com/maps" target="_blank">Open Google Maps</a>, right-click your location and select <em>"What's here?"</em> to get coordinates.</p>
                 <div class="form-group">
-                    <label>Photos</label>
-                    <input type="file" id="add-images" accept="image/*" multiple>
+                    <label>Photos *</label>
+                    <input type="file" id="add-images" accept="image/*" multiple capture="environment" required>
                 </div>
 
-                <!-- City is hidden because this app is Embu-only -->
                 <input type="hidden" id="add-city" value="Embu">
 
                 <hr style="margin:1.5rem 0;border:none;border-top:1px solid #eee;">
@@ -382,16 +446,46 @@ function renderAddListing() {
                 <div class="form-row">
                     <div class="form-group">
                         <label>Your Name *</label>
-                        <input type="text" id="add-landlord-name" required placeholder="e.g. Jane Wanjiku">
+                        <input type="text" id="add-landlord-name" required placeholder="e.g. Jane Wanjiku" ${nameValue}>
                     </div>
                     <div class="form-group">
                         <label>Phone Number *</label>
-                        <input type="tel" id="add-landlord-phone" required placeholder="e.g. 0712345678">
+                        <input type="tel" id="add-landlord-phone" required placeholder="e.g. 0712345678" ${phoneValue}>
                     </div>
                 </div>
+                ${!AppState.isLoggedIn ? '' : '<p style="font-size:0.85rem;color:#888;margin-top:0.5rem;">Your name and phone are pre-filled from your account.</p>'}
                 <button type="submit" class="btn btn-primary btn-block" style="margin-top:1rem;">Submit Listing</button>
             </form>
             <div id="add-result" style="margin-top:1rem;"></div>
+        </div>
+    `;
+}
+
+
+/**
+ * Render the Favorites / Saved Listings page.
+ */
+function renderFavorites() {
+    const favs = AppState.favorites || [];
+
+    if (!favs.length) {
+        return `
+            <div class="container" style="text-align:center;padding:4rem 1rem;">
+                <h2><i class="fas fa-heart" style="color:#e74c3c;"></i> Saved Listings</h2>
+                <p style="color:#888;margin-top:1rem;">You haven't saved any listings yet.</p>
+                <a href="#/browse" onclick="navigate('#/browse')" style="display:inline-block;margin-top:1rem;font-weight:600;"><i class="fas fa-search"></i> Browse Listings</a>
+            </div>
+        `;
+    }
+
+    const listingsHtml = favs
+        .map(f => renderCard(f.listing || f))
+        .join('');
+
+    return `
+        <div class="container">
+            <h2 style="margin-bottom:1rem;"><i class="fas fa-heart" style="color:#e74c3c;"></i> Saved Listings</h2>
+            <div class="listings-grid">${listingsHtml}</div>
         </div>
     `;
 }
@@ -404,12 +498,12 @@ function renderAbout() {
     return `
         <div class="about-container">
             <div class="about-card">
-                <h2>🏡 About CampusHaven KE</h2>
-                <p>CampusHaven KE helps University of Embu students find safe, affordable, and verified housing near campus. We focus on Embu town and surrounding areas — from Gakwegori to Kangaru, Njukiri to Town.</p>
+                <h2><i class="fas fa-home" style="color:#2E7D32;"></i> About Keja Link</h2>
+                <p>Keja Link helps University of Embu students find safe, affordable, and verified housing near campus. We focus on Embu town and surrounding areas — from Gakwegori to Kangaru, Njukiri to Town.</p>
                 <p>We partner with trusted landlords and verify listings so you can focus on your studies, not your housing.</p>
             </div>
             <div class="about-card">
-                <h2>🛡️ Safety Tips for Students</h2>
+                <h2><i class="fas fa-shield-alt" style="color:#2E7D32;"></i> Safety Tips for Students</h2>
                 <ul>
                     <li><strong>Always view the room in person</strong> or request a video tour before paying anything.</li>
                     <li><strong>Never pay</strong> a deposit before viewing the property.</li>
@@ -420,13 +514,91 @@ function renderAbout() {
                 </ul>
             </div>
             <div class="about-card">
-                <h2>👨‍👩‍👧‍👦 For Landlords</h2>
-                <p>Have a room near University of Embu? List it for free on CampusHaven KE and reach thousands of students actively looking for housing.</p>
-                <p><a href="#/add" onclick="navigate('#/add')">List your room now →</a></p>
+                <h2><i class="fas fa-users" style="color:#2E7D32;"></i> For Landlords</h2>
+                <p>Have a room near University of Embu? List it for free on Keja Link and reach thousands of students actively looking for housing.</p>
+                <p><a href="#/add" onclick="navigate('#/add')">List your room now <i class="fas fa-arrow-right"></i></a></p>
             </div>
             <div class="about-card">
-                <h2>📞 Contact Us</h2>
-                <p>Have feedback or need help? Reach out to us at <strong>help@campushaven.co.ke</strong></p>
+                <h2><i class="fas fa-phone" style="color:#2E7D32;"></i> Contact Us</h2>
+                <p>Have feedback or need help? Reach out to us at <strong>help@kejalink.co.ke</strong></p>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Render the Login page.
+ */
+function renderLogin() {
+    return `
+        <div class="login-container">
+            <div class="login-card">
+                <h2 style="text-align:center;margin-bottom:0.5rem;">Welcome Back</h2>
+                <p style="text-align:center;color:#666;margin-bottom:1.5rem;">Sign in to your Keja Link account</p>
+                <form id="login-form" onsubmit="event.preventDefault(); handleLogin()">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="login-email" required placeholder="you@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="login-password" required placeholder="Enter your password">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+                    <div id="login-error" style="color:#c62828;margin-top:0.8rem;display:none;"></div>
+                </form>
+                <p style="text-align:center;margin-top:1.2rem;font-size:0.9rem;">
+                    Don't have an account? <a href="#/register" onclick="navigate('#/register')">Create one</a>
+                </p>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Render the Registration page.
+ */
+function renderRegister() {
+    return `
+        <div class="login-container">
+            <div class="login-card" style="max-width:480px;">
+                <h2 style="text-align:center;margin-bottom:0.5rem;">Create Account</h2>
+                <p style="text-align:center;color:#666;margin-bottom:1.5rem;">Join Keja Link as a student or landlord</p>
+                <form id="register-form" onsubmit="event.preventDefault(); handleRegister()">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="reg-name" required placeholder="e.g. John Kamau">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="reg-email" required placeholder="you@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="tel" id="reg-phone" required placeholder="0712 345 678">
+                    </div>
+                    <div class="form-group">
+                        <label>I am a...</label>
+                        <select id="reg-role" onchange="document.getElementById('reg-id-number-wrap').style.display=this.value==='landlord'?'block':'none'">
+                            <option value="student">Student looking for housing</option>
+                            <option value="landlord">Landlord with rooms to list</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="reg-id-number-wrap" style="display:none;">
+                        <label>National ID Number</label>
+                        <input type="text" id="reg-id-number" placeholder="e.g. 12345678">
+                        <span style="font-size:0.8rem;color:#888;">Required for landlord accounts — helps us prevent scams.</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="reg-password" required minlength="4" placeholder="At least 4 characters">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+                    <div id="register-error" style="color:#c62828;margin-top:0.8rem;display:none;"></div>
+                </form>
+                <p style="text-align:center;margin-top:1.2rem;font-size:0.9rem;">
+                    Already have an account? <a href="#/login" onclick="navigate('#/login')">Sign in</a>
+                </p>
             </div>
         </div>
     `;
@@ -442,7 +614,7 @@ function renderAdminLogin() {
     return `
         <div class="login-container">
             <div class="login-card">
-                <h2>🔐 Admin Access</h2>
+                <h2><i class="fas fa-lock" style="color:#2E7D32;"></i> Admin Access</h2>
                 <p style="color:#666;margin-bottom:1.5rem;">Enter the admin password to manage listings and areas.</p>
                 <form id="admin-login-form" onsubmit="event.preventDefault(); adminLogin()">
                     <div class="form-group">
@@ -504,13 +676,13 @@ function renderAdmin() {
     const areaManagementHtml = `
         <div class="admin-section">
             <h3>Manage Areas</h3>
-            <p class="admin-hint">Areas are the neighbourhoods that appear in the add-listing dropdown. To add a new area, type a name and click "Add Area". To delete an area, click ✕ — only empty areas (0 listings) can be deleted.</p>
+            <p class="admin-hint">Areas are the neighbourhoods that appear in the add-listing dropdown. To add a new area, type a name and click "Add Area". To delete an area, click <i class="fas fa-times"></i> — only empty areas (0 listings) can be deleted.</p>
             <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
                 ${areas.length
                     ? areas.map(a => `
                         <div class="admin-area-item">
                             <span>${a.name} (${a.count})</span>
-                            <button class="btn btn-xs btn-danger" onclick="deleteArea(${a.id})" ${a.count > 0 ? 'disabled title="Cannot delete: ${a.count} listing(s) use this area"' : 'title="Delete area"'}>✕</button>
+                            <button class="btn btn-xs btn-danger" onclick="deleteArea(${a.id})" ${a.count > 0 ? 'disabled title="Cannot delete: ${a.count} listing(s) use this area"' : 'title="Delete area"'}><i class="fas fa-times"></i></button>
                         </div>
                     `).join('')
                     : '<span style="color:#888;">No areas. Add one below.</span>'
@@ -577,7 +749,7 @@ function renderAdmin() {
                     <div class="form-group">
                         <label>Type</label>
                         <select id="admin-edit-type">
-                            ${['bedsit','single_room','one_bedroom']
+                            ${['bedsit','single_room','one_bedroom','hostel']
                                 .map(t => `<option value="${t}"${t === editListing.listing_type ? ' selected' : ''}>${t.replace('_', ' ')}</option>`).join('')}
                         </select>
                     </div>
@@ -616,8 +788,8 @@ function renderAdmin() {
             const isEditing = l.id === editId;
             const rowClass = isEditing ? 'admin-row-editing' : '';
             const verifiedLabel = l.verified
-                ? '<span style="color:#2E7D32;font-weight:600;">✓ Yes</span>'
-                : '<span style="color:#999;">✗ No</span>';
+                ? '<span style="color:#2E7D32;font-weight:600;"><i class="fas fa-check" style="color:#2E7D32;"></i> Yes</span>'
+                : '<span style="color:#999;"><i class="fas fa-times" style="color:#999;"></i> No</span>';
             return `
                 <tr class="${rowClass}">
                     <td>${l.id}</td>
@@ -628,12 +800,12 @@ function renderAdmin() {
                     <td>${l.landlord_name}</td>
                     <td>${verifiedLabel}</td>
                     <td class="admin-actions">
-                        <button class="btn btn-sm" onclick="navigate('#/listing/${l.id}')">👁 View</button>
-                        <button class="btn btn-sm" onclick="editListing(${l.id})">✎ Edit</button>
+                        <button class="btn btn-sm" onclick="navigate('#/listing/${l.id}')"><i class="fas fa-eye"></i> View</button>
+                        <button class="btn btn-sm" onclick="editListing(${l.id})"><i class="fas fa-edit"></i> Edit</button>
                         <button class="btn btn-sm ${l.verified ? 'btn-warning' : 'btn-primary'}" onclick="toggleVerify(${l.id}, ${l.verified})">
                             ${l.verified ? 'Unverify' : 'Verify'}
                         </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteListing(${l.id})">✕ Delete</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteListing(${l.id})"><i class="fas fa-trash"></i> Delete</button>
                     </td>
                 </tr>
             `;
@@ -644,10 +816,10 @@ function renderAdmin() {
         <div class="admin-container">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
                 <h2>Admin Dashboard</h2>
-                <button class="btn btn-sm btn-danger" onclick="adminLogout()" style="font-size:0.85rem;">🚪 Logout</button>
+                <button class="btn btn-sm btn-danger" onclick="adminLogout()" style="font-size:0.85rem;"><i class="fas fa-sign-out-alt"></i> Logout</button>
             </div>
             <div class="admin-section admin-intro">
-                <p>Manage listings and areas on CampusHaven KE. Use the table below to edit, verify, or delete listings. Use the <strong>Manage Areas</strong> section to add or remove neighbourhoods — new areas appear immediately in the add-listing form dropdown.</p>
+                <p>Manage listings and areas on Keja Link. Use the table below to edit, verify, or delete listings. Use the <strong>Manage Areas</strong> section to add or remove neighbourhoods — new areas appear immediately in the add-listing form dropdown.</p>
             </div>
             ${statsHtml}
             ${areaManagementHtml}
@@ -672,4 +844,147 @@ function renderAdmin() {
             </div>
         </div>
     `;
+}
+
+/**
+ * Render the Landlord Dashboard (My Listings).
+ * Shows the landlord's own listings with edit/delete actions.
+ */
+function renderMyListings() {
+    const listings = AppState.listings;
+    const rows = listings.length
+        ? listings.map(l => {
+            const verifiedBadge = l.verified
+                ? '<span style="color:#2E7D32;font-weight:600;"><i class="fas fa-check-circle" style="color:#2E7D32;"></i> Verified</span>'
+                : '<span style="color:#999;">Pending verification</span>';
+            return `
+                <tr>
+                    <td>${l.id}</td>
+                    <td>${l.title}</td>
+                    <td>${l.area}</td>
+                    <td>KSh ${l.price.toLocaleString()}</td>
+                    <td>${l.listing_type}</td>
+                    <td>${verifiedBadge}</td>
+                    <td class="admin-actions">
+                        <button class="btn btn-sm" onclick="navigate('#/listing/${l.id}')"><i class="fas fa-eye"></i> View</button>
+                        <button class="btn btn-sm" onclick="editMyListing(${l.id})"><i class="fas fa-edit"></i> Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteMyListing(${l.id})"><i class="fas fa-trash"></i> Delete</button>
+                    </td>
+                </tr>
+            `;
+        }).join('')
+        : '<tr><td colspan="7" style="text-align:center;color:#888;">You haven\'t listed any rooms yet.</td></tr>';
+
+    // Edit form when a listing is selected for editing
+    const editId = AppState.editingListingId;
+    const editListing = editId ? listings.find(l => l.id === editId) : null;
+    const editFormHtml = editListing ? `
+        <div class="admin-edit-panel">
+            <h3>Editing: ${editListing.title}</h3>
+            <form id="my-edit-form" onsubmit="event.preventDefault(); saveMyEdit(${editListing.id})">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input type="text" id="my-edit-title" value="${editListing.title.replace(/"/g, '&quot;')}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Price (KSh)</label>
+                        <input type="number" id="my-edit-price" value="${editListing.price}" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Area</label>
+                        <select id="my-edit-area">
+                            ${getAreaOptions(editListing.area)}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select id="my-edit-type">
+                            ${['bedsit','single_room','one_bedroom','hostel']
+                                .map(t => `<option value="${t}"${t === editListing.listing_type ? ' selected' : ''}>${t.replace('_', ' ')}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Amenities (comma-separated)</label>
+                        <input type="text" id="my-edit-amenities" value="${editListing.amenities.replace(/"/g, '&quot;')}">
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;margin-top:1rem;">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn" onclick="cancelMyEdit()">Cancel</button>
+                </div>
+                <div id="my-edit-result" style="margin-top:0.5rem;"></div>
+            </form>
+        </div>
+    ` : '';
+
+    return `
+        <div class="admin-container">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+                <h2>My Listings</h2>
+                <a href="#/add" class="btn btn-primary" onclick="navigate('#/add')">+ Add New Listing</a>
+            </div>
+            <div class="admin-section" style="margin-top:1rem;">
+                <p style="color:#666;">Manage your rental listings below. New listings start as "Pending verification" until an admin approves them.</p>
+            </div>
+            ${editFormHtml}
+            <div class="admin-table-wrapper" style="margin-top:1rem;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Area</th>
+                            <th>Price</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Initialize the Leaflet map on the detail page.
+ * Called from the router after renderDetail() sets the HTML.
+ */
+function initDetailMap() {
+    const el = document.getElementById('detail-map');
+    if (!el) return;
+
+    if (el._leaflet_map) {
+        el._leaflet_map.invalidateSize();
+        return;
+    }
+
+    const l = AppState.currentListing;
+    if (!l || !l.latitude || !l.longitude) return;
+
+    const lat = parseFloat(l.latitude);
+    const lng = parseFloat(l.longitude);
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    const map = L.map(el, { zoomControl: false }).setView([lat, lng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+    }).addTo(map);
+    L.marker([lat, lng]).addTo(map);
+
+    const uoe = L.latLng(-0.5397, 37.4598);
+    const dist = map.distance(uoe, L.latLng(lat, lng));
+    const km = (dist / 1000).toFixed(1);
+    const distEl = document.getElementById('distance-text');
+    if (distEl) distEl.innerHTML = '<i class="fas fa-university" style="color:#2E7D32;"></i> ' + km + ' km from University of Embu';
+
+    el._leaflet_map = map;
+    setTimeout(() => map.invalidateSize(), 200);
 }

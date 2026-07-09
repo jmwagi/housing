@@ -84,6 +84,8 @@ async function router() {
     const { path, params } = getRouteParams();
     const app = document.getElementById('app');
 
+    updateNav();
+
     // Step 1: Show loading state immediately
     app.innerHTML = renderLoading();
 
@@ -140,18 +142,69 @@ async function router() {
                     const listing = await apiGetListing(params.id);
                     AppState.currentListing = listing;
                     app.innerHTML = renderDetail();
+                    initDetailMap();
                 } else {
                     app.innerHTML = renderError('No listing ID provided.');
                 }
                 break;
 
-            // ========== ADD LISTING FORM ==========
+            // ========== ADD LISTING FORM (landlord only) ==========
             case '/add':
-                // Fetch areas so the dropdown is populated from the database
+                if (!AppState.isLoggedIn) {
+                    navigate('#/login');
+                    break;
+                }
+                if (AppState.userRole !== 'landlord') {
+                    navigate('#/my-listings');
+                    break;
+                }
                 try {
                     AppState.areas = await apiGetAreas();
                 } catch (_) { /* fallback to hardcoded list */ }
                 app.innerHTML = renderAddListing();
+                break;
+
+            // ========== LOGIN ==========
+            case '/login':
+                app.innerHTML = renderLogin();
+                break;
+
+            // ========== REGISTER ==========
+            case '/register':
+                app.innerHTML = renderRegister();
+                break;
+
+            // ========== LOGOUT ==========
+            case '/logout':
+                AppState.authToken = null;
+                AppState.currentUser = null;
+                AppState.isLoggedIn = false;
+                AppState.userRole = null;
+                AppState.favoriteIds = new Set();
+                localStorage.removeItem('auth_token');
+                navigate('#/');
+                break;
+
+            // ========== MY LISTINGS (Landlord Dashboard) ==========
+            case '/my-listings':
+                if (!AppState.isLoggedIn || AppState.userRole !== 'landlord') {
+                    navigate('#/login');
+                    break;
+                }
+                const myListings = await apiGetListings({ owner_id: AppState.currentUser.id });
+                AppState.listings = myListings;
+                app.innerHTML = renderMyListings();
+                break;
+
+            // ========== FAVORITES (Student) ==========
+            case '/favorites':
+                if (!AppState.isLoggedIn) {
+                    navigate('#/login');
+                    break;
+                }
+                const favs = await apiGetFavorites();
+                AppState.favorites = favs;
+                app.innerHTML = renderFavorites();
                 break;
 
             // ========== ABOUT PAGE ==========
@@ -200,7 +253,11 @@ async function router() {
  * @param {string} value - The filter value (e.g., "bedsit")
  */
 function setFilter(key, value) {
-    AppState.filters[key] = value || null;
+    if (key === 'area') {
+        AppState.currentArea = value || null;
+    } else {
+        AppState.filters[key] = value || null;
+    }
     navigateToBrowse();
 }
 
@@ -218,6 +275,22 @@ function setPriceFilter(min, max) {
 }
 
 /**
+ * Called when the price dropdown changes.
+ * Parses combined values like "0-5000", "5000-8000", "8000-", or empty.
+ */
+function onPriceSelect(value) {
+    if (!value) {
+        setPriceFilter(null, null);
+        return;
+    }
+    const parts = value.split('-');
+    const min = parts[0] ? Number(parts[0]) : null;
+    const max = parts[1] ? Number(parts[1]) : null;
+    // "Under KSh 5,000" uses "0-5000" — treat 0 as null (no lower bound)
+    setPriceFilter(min || null, max);
+}
+
+/**
  * Helper: navigate to browse while preserving the current area filter.
  * This is used by setFilter() and setPriceFilter() so the area
  * selection is maintained when changing type/price.
@@ -226,8 +299,42 @@ function navigateToBrowse() {
     let hash = '#/browse';
     const params = [];
     if (AppState.currentArea) params.push(`area=${encodeURIComponent(AppState.currentArea)}`);
+    if (AppState.filters.search) params.push(`search=${encodeURIComponent(AppState.filters.search)}`);
     if (params.length) hash += '?' + params.join('&');
     navigate(hash);
+}
+
+/**
+ * Update the nav bar to show auth state (logged in vs logged out).
+ */
+function updateNav() {
+    const publicLinks = document.getElementById('public-nav-links');
+    const container = document.getElementById('auth-nav-links');
+    if (!container || !publicLinks) return;
+    if (AppState.isLoggedIn && AppState.currentUser) {
+        if (AppState.userRole === 'landlord') {
+            // Landlords: hide Browse/Help & Safety, show username + My Listings + Logout
+            publicLinks.style.display = 'none';
+            container.innerHTML = `
+                <span style="color:#2E7D32;font-weight:600;font-size:0.9rem;">${AppState.currentUser.full_name}</span>
+                <a href="#/my-listings" onclick="navigate('#/my-listings')">My Listings</a>
+                <a href="#/logout" onclick="navigate('#/logout')">Logout</a>
+            `;
+        } else {
+            publicLinks.style.display = '';
+            container.innerHTML = `
+                <span style="color:#2E7D32;font-size:0.85rem;margin-right:0.5rem;">${AppState.currentUser.full_name}</span>
+                <a href="#/favorites" onclick="navigate('#/favorites')">Saved</a>
+                <a href="#/logout" onclick="navigate('#/logout')">Logout</a>
+            `;
+        }
+    } else {
+        publicLinks.style.display = '';
+        container.innerHTML = `
+            <a href="#/login" onclick="navigate('#/login')">Sign In</a>
+            <a href="#/register" onclick="navigate('#/register')">Join</a>
+        `;
+    }
 }
 
 
@@ -267,13 +374,21 @@ async function submitListing(event) {
         formData.append('landlord_name', document.getElementById('add-landlord-name').value.trim());
         formData.append('landlord_phone', document.getElementById('add-landlord-phone').value.trim());
 
+        const lat = document.getElementById('add-latitude')?.value.trim();
+        const lng = document.getElementById('add-longitude')?.value.trim();
+        if (lat) formData.append('latitude', lat);
+        if (lng) formData.append('longitude', lng);
+
         const fileInput = document.getElementById('add-images');
+        if (!fileInput.files.length) {
+            throw new Error('At least one photo is required.');
+        }
         for (const file of fileInput.files) {
             formData.append('images', file);
         }
 
         await apiCreateListing(formData);
-        resultDiv.innerHTML = '<div class="alert alert-success">🎉 Listing submitted successfully! It will appear on the platform shortly.</div>';
+        resultDiv.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle" style="color:#2E7D32;"></i> Listing submitted for review! It will appear once approved by an admin.</div>';
         event.target.reset();
     } catch (err) {
         resultDiv.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
@@ -313,6 +428,104 @@ async function submitContact(event, listingId) {
     }
 }
 
+
+// =====================================================
+// AUTH HANDLERS
+// =====================================================
+
+/**
+ * Handle login form submission.
+ */
+async function handleLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const error = document.getElementById('login-error');
+
+    if (!email || !password) {
+        error.textContent = 'Please fill in all fields.';
+        error.style.display = 'block';
+        return;
+    }
+
+    try {
+        const res = await apiLogin({ email, password });
+        AppState.authToken = res.access_token;
+        AppState.currentUser = res.user;
+        AppState.isLoggedIn = true;
+        AppState.userRole = res.user.role;
+        localStorage.setItem('auth_token', res.access_token);
+        await loadFavoriteIds();
+        navigate(AppState.userRole === 'landlord' ? '#/my-listings' : '#/');
+    } catch (err) {
+        error.textContent = err.message;
+        error.style.display = 'block';
+    }
+}
+
+/**
+ * Handle registration form submission.
+ */
+async function handleRegister() {
+    const name = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const phone = document.getElementById('reg-phone').value.trim();
+    const role = document.getElementById('reg-role').value;
+    const idNumber = document.getElementById('reg-id-number').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const error = document.getElementById('register-error');
+
+    if (!name || !email || !phone || !password) {
+        error.textContent = 'Please fill in all required fields.';
+        error.style.display = 'block';
+        return;
+    }
+
+    if (role === 'landlord' && !idNumber) {
+        error.textContent = 'National ID number is required for landlord accounts.';
+        error.style.display = 'block';
+        return;
+    }
+
+    try {
+        const data = {
+            email, password, full_name: name, phone, role,
+            id_number: role === 'landlord' ? idNumber : null,
+        };
+        const res = await apiRegister(data);
+        AppState.authToken = res.access_token;
+        AppState.currentUser = res.user;
+        AppState.isLoggedIn = true;
+        AppState.userRole = res.user.role;
+        localStorage.setItem('auth_token', res.access_token);
+        await loadFavoriteIds();
+        navigate(AppState.userRole === 'landlord' ? '#/my-listings' : '#/');
+    } catch (err) {
+        error.textContent = err.message;
+        error.style.display = 'block';
+    }
+}
+
+/**
+ * Restore session on app start by checking for existing token.
+ * Called from app.js after DOMContentLoaded.
+ */
+async function restoreSession() {
+    if (!AppState.authToken) return;
+    try {
+        const user = await apiGetMe();
+        AppState.currentUser = user;
+        AppState.isLoggedIn = true;
+        AppState.userRole = user.role;
+        await loadFavoriteIds();
+    } catch {
+        // Token expired or invalid — clear it
+        AppState.authToken = null;
+        AppState.currentUser = null;
+        AppState.isLoggedIn = false;
+        AppState.userRole = null;
+        localStorage.removeItem('auth_token');
+    }
+}
 
 // =====================================================
 // ADMIN HANDLERS
@@ -511,5 +724,118 @@ function changePassword() {
     document.getElementById('admin-current-password').value = '';
     document.getElementById('admin-new-password').value = '';
     document.getElementById('admin-confirm-password').value = '';
-    result.innerHTML = '<div class="alert alert-success">✅ Password updated successfully.</div>';
+    result.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle" style="color:#2E7D32;"></i> Password updated successfully.</div>';
+}
+
+/**
+ * Edit a listing from the landlord dashboard.
+ * Sets editingListingId and re-renders to show edit panel.
+ */
+async function editMyListing(id) {
+    AppState.editingListingId = id;
+    router();
+}
+
+/**
+ * Cancel editing and return to the my-listings table view.
+ */
+function cancelMyEdit() {
+    AppState.editingListingId = null;
+    router();
+}
+
+/**
+ * Save changes to a listing from the landlord dashboard.
+ */
+async function saveMyEdit(id) {
+    const btn = document.querySelector('#my-edit-form button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+        const data = {
+            title: document.getElementById('my-edit-title').value.trim(),
+            price: parseFloat(document.getElementById('my-edit-price').value),
+            area: document.getElementById('my-edit-area').value,
+            listing_type: document.getElementById('my-edit-type').value,
+            amenities: document.getElementById('my-edit-amenities').value.trim(),
+        };
+        await apiUpdateListing(id, data);
+        AppState.editingListingId = null;
+        // Refresh listings
+        const myListings = await apiGetListings({ owner_id: AppState.currentUser.id });
+        AppState.listings = myListings;
+        router();
+    } catch (err) {
+        const result = document.getElementById('my-edit-result');
+        if (result) result.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+    }
+}
+
+/**
+ * Delete a listing from the landlord dashboard.
+ */
+async function deleteMyListing(id) {
+    if (!confirm('Delete this listing? This cannot be undone.')) return;
+    try {
+        await apiDeleteListing(id);
+        // Refresh the listings
+        const myListings = await apiGetListings({ owner_id: AppState.currentUser.id });
+        AppState.listings = myListings;
+        router();
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+
+// =====================================================
+// FAVORITE HANDLERS
+// =====================================================
+
+/**
+ * Load the user's favorite IDs into AppState.favoriteIds.
+ * Called after login/session restore.
+ */
+async function loadFavoriteIds() {
+    if (!AppState.isLoggedIn) {
+        AppState.favoriteIds = new Set();
+        return;
+    }
+    try {
+        const favs = await apiGetFavorites();
+        AppState.favoriteIds = new Set(favs.map(f => f.listing_id));
+    } catch {
+        AppState.favoriteIds = new Set();
+    }
+}
+
+/**
+ * Toggle a listing as a favorite.
+ * If already favorited, remove it; otherwise add it.
+ * Updates the UI in-place without a full page reload.
+ */
+async function toggleFavorite(listingId) {
+    if (!AppState.isLoggedIn) {
+        navigate('#/login');
+        return;
+    }
+
+    const wasFav = AppState.favoriteIds.has(listingId);
+
+    try {
+        if (wasFav) {
+            await apiRemoveFavorite(listingId);
+            AppState.favoriteIds.delete(listingId);
+        } else {
+            await apiAddFavorite(listingId);
+            AppState.favoriteIds.add(listingId);
+        }
+        // Re-render the current page to reflect the change
+        router();
+    } catch (err) {
+        alert('Error updating favorite: ' + err.message);
+    }
 }

@@ -42,7 +42,7 @@ async def list_areas(db: AsyncSession = Depends(get_db)):
     counts = {row[0]: row[1] for row in count_rows.all()}
 
     return [
-        AreaInfo(id=a.id, name=a.name, count=counts.get(a.name, 0))
+        AreaInfo(id=a.id, name=a.name, count=counts.get(a.name, 0), latitude=a.latitude, longitude=a.longitude)
         for a in areas
     ]
 
@@ -60,11 +60,11 @@ async def create_area(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Area already exists")
 
-    area = Area(name=data.name)
+    area = Area(name=data.name, latitude=data.latitude, longitude=data.longitude)
     db.add(area)
     await db.commit()
     await db.refresh(area)
-    return AreaInfo(id=area.id, name=area.name, count=0)
+    return AreaInfo(id=area.id, name=area.name, count=0, latitude=area.latitude, longitude=area.longitude)
 
 
 @router.delete("/{area_id}", status_code=204)

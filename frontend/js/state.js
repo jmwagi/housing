@@ -46,6 +46,15 @@ const AppState = {
     adminLoggedIn: localStorage.getItem('admin_logged_in') === 'true',
     adminPassword: localStorage.getItem('admin_password') || 'admin123',
 
+    // User auth
+    authToken: localStorage.getItem('auth_token'),
+    currentUser: null,
+    isLoggedIn: !!localStorage.getItem('auth_token'),
+    userRole: null,
+
+    // Favorite listing IDs (loaded on login)
+    favoriteIds: new Set(),
+
     // Current filter selections
     filters: {
         listing_type: null,   // "bedsit", "single_room", "one_bedroom", or null

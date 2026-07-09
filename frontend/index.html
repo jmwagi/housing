@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   =====================================================
-  CampusHaven KE — Main HTML Shell
+  Keja Link — Main HTML Shell
   =====================================================
   This is the SPA (Single Page Application) shell.
   It contains:
@@ -30,8 +30,10 @@
       initial-scale=1 means no default zoom on mobile devices
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CampusHaven KE — Find Student Housing in Kenya</title>
-    <!-- Link to our external CSS file (not inline styles) -->
+    <title>Keja Link — Find Student Housing in Kenya</title>
+    <!-- Leaflet CSS for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -49,16 +51,13 @@
           to '#/', which triggers the hashchange event and
           the router loads the home page.
         -->
-        <div class="logo" onclick="navigate('#/')">CampusHaven KE</div>
-        <nav>
-            <!--
-              The href="#/" provides a fallback URL if JS fails.
-              The onclick overrides the default behaviour and
-              uses our smooth navigation function instead.
-            -->
-            <a href="#/" onclick="navigate('#/')">Home</a>
-            <a href="#/add" onclick="navigate('#/add')">List Your Room</a>
-            <a href="#/about" onclick="navigate('#/about')">Help & Safety</a>
+        <div class="logo" onclick="navigate('#/')">Keja Link</div>
+        <nav id="main-nav">
+            <span id="public-nav-links">
+                <a href="#/browse" onclick="navigate('#/browse')">Browse</a>
+                <a href="#/about" onclick="navigate('#/about')">Help & Safety</a>
+            </span>
+            <span id="auth-nav-links"></span>
         </nav>
     </header>
 
@@ -81,7 +80,7 @@
       and footer has margin-top:auto).
     -->
     <footer>
-        <p>&copy; 2026 CampusHaven KE — Helping students find safe housing across Kenya.</p>
+        <p>&copy; 2026 Keja Link — Helping students find safe housing across Kenya.</p>
         <p>Designed & Developed by <a href="https://viqsystems.tech" target="_blank" rel="noopener noreferrer">Viq Systems</a></p>
     </footer>
 
@@ -98,6 +97,7 @@
       function called in index.html onclick would not exist yet.
       This is why the order matters in vanilla JS projects.
     -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/js/api.js"></script>
     <script src="/js/state.js"></script>
     <script src="/js/render.js"></script>

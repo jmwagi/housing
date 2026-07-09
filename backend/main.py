@@ -37,7 +37,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.database import init_db
-from backend.routers import listings, areas, contact
+from backend.routers import listings, areas, contact, auth, favorites
 
 
 @asynccontextmanager
@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
 
 # Create the FastAPI application instance
 app = FastAPI(
-    title="CampusHaven KE",
+    title="Keja Link",
     version="1.0.0",
     lifespan=lifespan,              # Register the lifecycle handler
 )
@@ -85,6 +85,8 @@ app.add_middleware(
 app.include_router(listings.router)   # /api/listings/*
 app.include_router(areas.router)      # /api/areas/*
 app.include_router(contact.router)    # /api/contact/*
+app.include_router(auth.router)       # /api/auth/*
+app.include_router(favorites.router)  # /api/favorites/*
 
 
 # ===================== STATIC FILES: IMAGES =====================

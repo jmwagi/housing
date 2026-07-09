@@ -39,6 +39,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database import get_db
 from backend.models import Listing
 from backend.schemas import ListingCreate, ListingResponse, ListingUpdate
+from backend.routers.auth import get_current_user_optional
 
 # Create the router. prefix="/api/listings" means all routes
 # here are mounted at /api/listings. So @router.get("") becomes
@@ -61,6 +62,7 @@ async def list_listings(
     max_price: Optional[float] = None,    # Maximum price (KSh)
     listing_type: Optional[str] = None,   # "bedsit", "single_room", "one_bedroom"
     verified: Optional[bool] = None,      # Filter by verification status (admin: show all, public: show only verified)
+    owner_id: Optional[int] = None,       # Filter by landlord (owner) ID
     search: Optional[str] = None,         # Text search across title, area, description, city
     db: AsyncSession = Depends(get_db),   # Database session from FastAPI dependency injection
 ):
@@ -97,6 +99,9 @@ async def list_listings(
     if verified is not None:
         # Filter by verification status (True = verified, False = unverified)
         stmt = stmt.where(Listing.verified == verified)
+    if owner_id is not None:
+        # Filter by listing owner (landlord account)
+        stmt = stmt.where(Listing.owner_id == owner_id)
     if search:
         # Search across multiple fields using OR (|)
         like = f"%{search}%"
@@ -105,6 +110,7 @@ async def list_listings(
             | Listing.area.ilike(like)              # Area/estate name
             | Listing.description.ilike(like)        # Full description
             | Listing.city.ilike(like)               # City name
+            | Listing.amenities.ilike(like)           # Amenities
         )
 
     # Execute the query and get all results
@@ -144,40 +150,28 @@ async def create_listing(
     amenities: str = Form(""),
     landlord_name: str = Form(...),
     landlord_phone: str = Form(...),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
     # Uploaded files — list of files, default empty
     images: list[UploadFile] = File(default=[]),
+    current_user = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    POST /api/listings
-    Creates a new listing. Accepts multipart/form-data so
-    clients can upload images along with text fields.
-
-    IMAGE STORAGE PATTERN:
-    1. For each uploaded image, generate a unique filename
-       using UUID (universally unique identifier).
-    2. Save the file to backend/uploads/
-    3. Store only the filename (not the full path) in the database
-    4. Images are served via the /api/images/ static mount
-
-    Why UUID instead of the original filename?
-    - Avoids filename collisions (two users uploading "room.jpg")
-    - Prevents security issues (e.g., "../etc/passwd" in filename)
-    """
     saved_images = []
     for img in images:
-        # Extract file extension from original filename (e.g., ".jpg")
+        if not img.filename:
+            continue
         ext = os.path.splitext(img.filename)[1] if img.filename else ".jpg"
-        # Generate a unique UUID-based filename
         filename = f"{uuid.uuid4().hex}{ext}"
         path = os.path.join(UPLOAD_DIR, filename)
-        # Read the uploaded file contents and write to disk
         content = await img.read()
         with open(path, "wb") as f:
             f.write(content)
         saved_images.append(filename)
 
-    # Create a new Listing ORM object
+    if not saved_images:
+        raise HTTPException(status_code=400, detail="At least one photo is required.")
+
     listing = Listing(
         title=title,
         description=description,
@@ -186,9 +180,12 @@ async def create_listing(
         area=area,
         listing_type=listing_type,
         amenities=amenities,
-        images=",".join(saved_images),      # Comma-separated filenames
+        images=",".join(saved_images),
         landlord_name=landlord_name,
         landlord_phone=landlord_phone,
+        latitude=latitude,
+        longitude=longitude,
+        owner_id=current_user.id if current_user else None,
     )
 
     # Add to database session, commit, and refresh
@@ -203,23 +200,18 @@ async def create_listing(
 @router.put("/{listing_id}", response_model=ListingResponse)
 async def update_listing(
     listing_id: int,
-    data: ListingUpdate,                          # Only fields that are included get updated
+    data: ListingUpdate,
+    current_user = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    PUT /api/listings/{listing_id}
-    Updates an existing listing. Partial updates are supported
-    — only include the fields you want to change.
-
-    model_dump(exclude_unset=True) returns only the fields
-    that the client actually sent (not the default None values).
-    """
     result = await db.execute(select(Listing).where(Listing.id == listing_id))
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
 
-    # Update only the fields that were provided
+    if listing.owner_id is not None and current_user and listing.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You don't have permission to edit this listing")
+
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(listing, key, value)
@@ -233,25 +225,22 @@ async def update_listing(
 @router.delete("/{listing_id}", status_code=204)
 async def delete_listing(
     listing_id: int,
+    current_user = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    DELETE /api/listings/{listing_id}
-    Deletes a listing and its associated image files.
-    Returns 204 No Content on success.
-    """
     result = await db.execute(select(Listing).where(Listing.id == listing_id))
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
 
-    # Clean up: delete associated image files from disk
+    if listing.owner_id is not None and current_user and listing.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You don't have permission to delete this listing")
+
     images = listing.images.split(",") if listing.images else []
     for img in images:
         path = os.path.join(UPLOAD_DIR, img.strip())
         if os.path.exists(path):
             os.remove(path)
 
-    # Delete the database record
     await db.delete(listing)
     await db.commit()

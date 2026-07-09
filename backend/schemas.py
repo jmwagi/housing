@@ -47,6 +47,8 @@ class ListingCreate(BaseModel):
     amenities: str = ""                          # Optional: comma-separated
     landlord_name: str                           # Required: landlord's name
     landlord_phone: str                          # Required: landlord's phone
+    latitude: Optional[float] = None             # Map coordinate
+    longitude: Optional[float] = None            # Map coordinate
 
 
 class ListingUpdate(BaseModel):
@@ -65,6 +67,8 @@ class ListingUpdate(BaseModel):
     landlord_name: Optional[str] = None
     landlord_phone: Optional[str] = None
     verified: Optional[bool] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class ListingResponse(BaseModel):
@@ -72,11 +76,6 @@ class ListingResponse(BaseModel):
     Schema for returning a listing to the client.
     This includes ALL fields, even server-generated ones
     like id, verified, created_at, updated_at.
-
-    model_config = {"from_attributes": True}
-    This tells Pydantic to read data from ORM object attributes
-    (SQLAlchemy model instances) instead of only from dicts.
-    Without this, we'd have to manually convert ORM objects to dicts.
     """
     id: int
     title: str
@@ -90,6 +89,9 @@ class ListingResponse(BaseModel):
     verified: bool
     landlord_name: str
     landlord_phone: str
+    owner_id: Optional[int] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     created_at: datetime
     updated_at: datetime
 
@@ -105,13 +107,55 @@ class AreaInfo(BaseModel):
     id: int
     name: str
     count: int = 0
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class AreaCreate(BaseModel):
-    """
-    Schema for creating a new area.
-    """
     name: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    full_name: str
+    phone: str
+    role: str          # "student" or "landlord"
+    id_number: Optional[str] = None
+
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    full_name: str
+    phone: str
+    role: str
+    id_number: Optional[str] = None
+    is_verified: bool
+    created_at: datetime
+    model_config = {"from_attributes": True}
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
+
+
+class FavoriteResponse(BaseModel):
+    id: int
+    user_id: int
+    listing_id: int
+    created_at: datetime
+    listing: Optional[ListingResponse] = None
+    model_config = {"from_attributes": True}
 
 
 class ContactRequest(BaseModel):

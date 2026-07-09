@@ -36,8 +36,16 @@
   parsing the HTML document. At this point all our script
   tags have loaded (api.js, state.js, render.js, router.js)
   and we can safely call router() to render the initial page.
+
+  We also call restoreSession() first to check if the user
+  has an existing auth token (from a previous session stored
+  in localStorage). If valid, it populates AppState.currentUser.
 */
-window.addEventListener('DOMContentLoaded', router);
+window.addEventListener('DOMContentLoaded', async () => {
+    await restoreSession();
+    updateNav();
+    router();
+});
 
 /*
   hashchange fires whenever the URL hash changes.

@@ -39,8 +39,15 @@ const API_BASE = '/api';
  */
 async function apiFetch(path, options = {}) {
     const url = `${API_BASE}${path}`;
+    const headers = { 'Accept': 'application/json', ...options.headers };
+
+    // Attach auth token if available
+    if (AppState.authToken) {
+        headers['Authorization'] = `Bearer ${AppState.authToken}`;
+    }
+
     const res = await fetch(url, {
-        headers: { 'Accept': 'application/json', ...options.headers },
+        headers,
         ...options,
     });
 
@@ -208,6 +215,60 @@ function apiContactLandlord(listingId, data) {
  * @param {string} filename - The image filename or URL
  * @returns {string} - The full URL to display the image
  */
+/**
+ * Register a new user account.
+ * POST /api/auth/register
+ */
+function apiRegister(data) {
+    return apiFetch('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+}
+
+/**
+ * Log in with email and password.
+ * POST /api/auth/login
+ */
+function apiLogin(data) {
+    return apiFetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+}
+
+/**
+ * Get the currently logged-in user's profile.
+ * GET /api/auth/me
+ * The auth token is automatically sent via apiFetch.
+ */
+function apiGetMe() {
+    return apiFetch('/auth/me');
+}
+
+/**
+ * Get the current user's favorite listings.
+ */
+function apiGetFavorites() {
+    return apiFetch('/favorites');
+}
+
+/**
+ * Add a listing to favorites.
+ */
+function apiAddFavorite(listingId) {
+    return apiFetch(`/favorites/${listingId}`, { method: 'POST' });
+}
+
+/**
+ * Remove a listing from favorites.
+ */
+function apiRemoveFavorite(listingId) {
+    return apiFetch(`/favorites/${listingId}`, { method: 'DELETE' });
+}
+
 function imageUrl(filename) {
     if (!filename) return '';
     if (filename.startsWith('http')) return filename;

@@ -28,7 +28,7 @@ if DATABASE_URL:
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 else:
     # Local fallback — file-based SQLite
-    DATABASE_URL = "sqlite+aiosqlite:///./backend/campus_haven.db"
+    DATABASE_URL = "sqlite+aiosqlite:///./backend/keja_link.db"
 
 # Create the async engine
 engine = create_async_engine(DATABASE_URL, echo=False)
@@ -48,5 +48,5 @@ async def get_db():
 
 async def init_db():
     async with engine.begin() as conn:
-        from backend.models import Listing, Area
+        from backend.models import Listing, Area, User, Favorite
         await conn.run_sync(Base.metadata.create_all)
