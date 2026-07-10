@@ -593,6 +593,12 @@ function renderRegister() {
                         <label>Password</label>
                         <input type="password" id="reg-password" required minlength="4" placeholder="At least 4 characters">
                     </div>
+                    <div class="form-group" style="font-size:0.85rem;">
+                        <label style="display:flex;align-items:flex-start;gap:8px;font-weight:normal;cursor:pointer;">
+                            <input type="checkbox" id="reg-terms" style="margin-top:3px;">
+                            I agree to the <a href="#/terms" onclick="navigate('#/terms')">Terms of Service</a> and <a href="#/privacy" onclick="navigate('#/privacy')">Privacy Policy</a>
+                        </label>
+                    </div>
                     <button type="submit" class="btn btn-primary btn-block">Create Account</button>
                     <div id="register-error" style="color:#c62828;margin-top:0.8rem;display:none;"></div>
                 </form>
@@ -987,4 +993,52 @@ function initDetailMap() {
 
     el._leaflet_map = map;
     setTimeout(() => map.invalidateSize(), 200);
+}
+
+function renderTerms() {
+    return `
+        <div class="about-container">
+            <div class="about-card">
+                <h2>Terms of Service</h2>
+                <p><em>Last updated: July 2026</em></p>
+                <h3>1. Acceptance of Terms</h3>
+                <p>By using Keja Go, you agree to these Terms of Service. If you do not agree, do not use the platform.</p>
+                <h3>2. Description of Service</h3>
+                <p>Keja Go connects students with verified housing listings near University of Embu. We are a listing platform only — we do not own, manage, or lease any property listed on the site.</p>
+                <h3>3. User Responsibilities</h3>
+                <p>You agree to provide accurate information when creating an account or listing a property. Landlords are responsible for the accuracy of their listings. Students should always view a property in person before making any payment.</p>
+                <h3>4. Prohibited Conduct</h3>
+                <p>You may not use Keja Go for fraudulent activity, misrepresent a property, or attempt to harm other users or the platform itself.</p>
+                <h3>5. Limitation of Liability</h3>
+                <p>Keja Go is not liable for any disputes, damages, or losses arising from interactions between users. All property arrangements are solely between the landlord and tenant.</p>
+                <h3>6. Changes to Terms</h3>
+                <p>We reserve the right to update these terms at any time. Continued use of the platform after changes constitutes acceptance of the new terms.</p>
+                <p style="margin-top:1.5rem;"><a href="#/register" onclick="navigate('#/register')">&larr; Back to registration</a></p>
+            </div>
+        </div>
+    `;
+}
+
+function renderPrivacy() {
+    return `
+        <div class="about-container">
+            <div class="about-card">
+                <h2>Privacy Policy</h2>
+                <p><em>Last updated: July 2026</em></p>
+                <h3>1. Information We Collect</h3>
+                <p>We collect information you provide when creating an account: name, email, phone number, role (student or landlord), and national ID (landlords only). We also collect listing data submitted by landlords.</p>
+                <h3>2. How We Use Your Information</h3>
+                <p>Your information is used to operate the platform, verify listings, facilitate communication between students and landlords, and improve our services.</p>
+                <h3>3. Data Sharing</h3>
+                <p>We do not sell your personal data. Listing information (including landlord contact details) is displayed publicly on the platform to enable students to inquire about properties.</p>
+                <h3>4. Data Security</h3>
+                <p>We implement reasonable security measures to protect your data. However, no online platform is 100% secure, and you share information at your own risk.</p>
+                <h3>5. Your Rights</h3>
+                <p>You may request deletion of your account and associated data by contacting us at <strong>help@keja-go.co.ke</strong>.</p>
+                <h3>6. Contact</h3>
+                <p>For questions about this policy, email <strong>help@keja-go.co.ke</strong>.</p>
+                <p style="margin-top:1.5rem;"><a href="#/register" onclick="navigate('#/register')">&larr; Back to registration</a></p>
+            </div>
+        </div>
+    `;
 }

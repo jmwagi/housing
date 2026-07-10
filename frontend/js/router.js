@@ -92,23 +92,10 @@ async function router() {
     try {
         // Step 2: Match the path and handle each route
         switch (path) {
-            // ========== HOME PAGE ==========
+            // ========== HOME PAGE = redirects to /browse ==========
             case '/':
-                /*
-                  Fetch areas and listings in PARALLEL.
-                  Both are filtered to Embu by default.
-                  Promise.all() runs both API calls at the
-                  same time for faster load.
-                */
-                const [areas, listings] = await Promise.all([
-                    apiGetAreas(),
-                    apiGetListings({ city: 'Embu', verified: 'true' }),
-                ]);
-                AppState.areas = areas;
-                AppState.listings = listings;
-                AppState.currentArea = null;  // reset area filter
-                app.innerHTML = renderHome();
-                break;
+                navigate('#/browse');
+                return;
 
             // ========== BROWSE PAGE ==========
             case '/browse':
@@ -210,6 +197,16 @@ async function router() {
             // ========== ABOUT PAGE ==========
             case '/about':
                 app.innerHTML = renderAbout();
+                break;
+
+            // ========== TERMS OF SERVICE ==========
+            case '/terms':
+                app.innerHTML = renderTerms();
+                break;
+
+            // ========== PRIVACY POLICY ==========
+            case '/privacy':
+                app.innerHTML = renderPrivacy();
                 break;
 
             // ========== ADMIN DASHBOARD (password-protected) ==========
@@ -455,7 +452,7 @@ async function handleLogin() {
         AppState.userRole = res.user.role;
         localStorage.setItem('auth_token', res.access_token);
         await loadFavoriteIds();
-        navigate(AppState.userRole === 'landlord' ? '#/my-listings' : '#/');
+        navigate(AppState.userRole === 'landlord' ? '#/my-listings' : '#/browse');
     } catch (err) {
         error.textContent = err.message;
         error.style.display = 'block';
@@ -486,6 +483,13 @@ async function handleRegister() {
         return;
     }
 
+    const termsChecked = document.getElementById('reg-terms').checked;
+    if (!termsChecked) {
+        error.textContent = 'You must agree to the Terms of Service and Privacy Policy.';
+        error.style.display = 'block';
+        return;
+    }
+
     try {
         const data = {
             email, password, full_name: name, phone, role,
@@ -498,7 +502,7 @@ async function handleRegister() {
         AppState.userRole = res.user.role;
         localStorage.setItem('auth_token', res.access_token);
         await loadFavoriteIds();
-        navigate(AppState.userRole === 'landlord' ? '#/my-listings' : '#/');
+        navigate(AppState.userRole === 'landlord' ? '#/my-listings' : '#/browse');
     } catch (err) {
         error.textContent = err.message;
         error.style.display = 'block';
