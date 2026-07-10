@@ -520,7 +520,7 @@ function renderAbout() {
             </div>
             <div class="about-card">
                 <h2><i class="fas fa-phone" style="color:#2E7D32;"></i> Contact Us</h2>
-                <p>Have feedback or need help? Reach out to us at <strong>help@kejalink.co.ke</strong></p>
+                <p>Have feedback or need help? Reach out to us at <strong>help@keja-go.co.ke</strong></p>
             </div>
         </div>
     `;

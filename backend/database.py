@@ -29,7 +29,7 @@ if DATABASE_URL:
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 else:
     # Local fallback — file-based SQLite
-    DATABASE_URL = "sqlite+aiosqlite:///./backend/keja_link.db"
+    DATABASE_URL = "sqlite+aiosqlite:///./backend/keja-go.db"
 
 # Create the async engine
 engine = create_async_engine(DATABASE_URL, echo=False)

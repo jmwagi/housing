@@ -13,7 +13,7 @@ from backend.schemas import UserCreate, UserLogin, UserResponse, TokenResponse
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-SECRET_KEY = os.getenv("JWT_SECRET", "keja-link-secret-key-change-in-production")
+SECRET_KEY = os.getenv("JWT_SECRET", "keja-go-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 7
 

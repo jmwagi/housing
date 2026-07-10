@@ -55,7 +55,7 @@ uvicorn backend.main:app --reload --port 8000
 
 Open http://localhost:8000 in your browser.
 
-> Locally, the app uses SQLite (zero-config, file stored at `backend/keja_link.db`).
+> Locally, the app uses SQLite (zero-config, file stored at `backend/keja-go.db`).
 > In production (Render), it uses PostgreSQL via the `DATABASE_URL` environment variable.
 > To re-seed on PostgreSQL: `python -m backend.seed --force`
 
