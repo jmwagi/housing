@@ -36,7 +36,8 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.database import init_db
+from backend.database import init_db, get_db
+from sqlalchemy import text
 from backend.routers import listings, areas, contact, auth, favorites
 
 
@@ -84,6 +85,16 @@ app.include_router(areas.router)      # /api/areas/*
 app.include_router(contact.router)    # /api/contact/*
 app.include_router(auth.router)       # /api/auth/*
 app.include_router(favorites.router)  # /api/favorites/*
+
+
+# ===================== HEALTH CHECK =====================
+@app.get("/api/health")
+async def health(db=Depends(get_db)):
+    try:
+        await db.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "connected"}
+    except Exception as e:
+        return {"status": "error", "database": str(e)[:200]}
 
 
 # ===================== STATIC FILES: FRONTEND =====================
