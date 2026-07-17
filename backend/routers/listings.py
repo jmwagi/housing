@@ -30,8 +30,11 @@
 """
 
 import os
+import json
 import uuid
 from typing import Optional
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,12 +45,36 @@ from backend.schemas import ListingCreate, ListingResponse, ListingUpdate
 from backend.routers.auth import get_current_user_optional
 
 
-def get_supabase():
-    from supabase import create_client, Client
-    return create_client(
-        os.getenv("SUPABASE_URL", ""),
-        os.getenv("SUPABASE_SERVICE_KEY", ""),
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
+
+
+def storage_upload(filename: str, data: bytes):
+    req = Request(
+        method="POST",
+        url=f"{SUPABASE_URL}/storage/v1/object/listing-images/{filename}",
+        data=data,
+        headers={
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/octet-stream",
+        },
     )
+    with urlopen(req) as resp:
+        return resp.status
+
+
+def storage_delete(filenames: list[str]):
+    req = Request(
+        method="DELETE",
+        url=f"{SUPABASE_URL}/storage/v1/object/listing-images",
+        data=json.dumps({"prefixes": filenames}).encode(),
+        headers={
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+        },
+    )
+    with urlopen(req) as resp:
+        return resp.status
 
 router = APIRouter(prefix="/api/listings", tags=["listings"])
 
@@ -164,7 +191,7 @@ async def create_listing(
         ext = os.path.splitext(img.filename)[1] if img.filename else ".jpg"
         filename = f"{uuid.uuid4().hex}{ext}"
         content = await img.read()
-        get_supabase().storage.from_("listing-images").upload(filename, content)
+        storage_upload(filename, content)
         saved_images.append(filename)
 
     if not saved_images:
@@ -235,13 +262,12 @@ async def delete_listing(
         raise HTTPException(status_code=403, detail="You don't have permission to delete this listing")
 
     images = listing.images.split(",") if listing.images else []
-    for img in images:
-        img = img.strip()
-        if img:
-            try:
-                get_supabase().storage.from_("listing-images").remove([img])
-            except Exception:
-                pass
+    to_delete = [img.strip() for img in images if img.strip()]
+    if to_delete:
+        try:
+            storage_delete(to_delete)
+        except Exception:
+            pass
 
     await db.delete(listing)
     await db.commit()
