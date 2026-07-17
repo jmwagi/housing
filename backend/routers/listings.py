@@ -35,17 +35,19 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from supabase import create_client, Client
 
 from backend.database import get_db
 from backend.models import Listing
 from backend.schemas import ListingCreate, ListingResponse, ListingUpdate
 from backend.routers.auth import get_current_user_optional
 
-supabase: Client = create_client(
-    os.getenv("SUPABASE_URL", ""),
-    os.getenv("SUPABASE_SERVICE_KEY", ""),
-)
+
+def get_supabase():
+    from supabase import create_client, Client
+    return create_client(
+        os.getenv("SUPABASE_URL", ""),
+        os.getenv("SUPABASE_SERVICE_KEY", ""),
+    )
 
 router = APIRouter(prefix="/api/listings", tags=["listings"])
 
@@ -162,7 +164,7 @@ async def create_listing(
         ext = os.path.splitext(img.filename)[1] if img.filename else ".jpg"
         filename = f"{uuid.uuid4().hex}{ext}"
         content = await img.read()
-        supabase.storage.from_("listing-images").upload(filename, content)
+        get_supabase().storage.from_("listing-images").upload(filename, content)
         saved_images.append(filename)
 
     if not saved_images:
@@ -237,7 +239,7 @@ async def delete_listing(
         img = img.strip()
         if img:
             try:
-                supabase.storage.from_("listing-images").remove([img])
+                get_supabase().storage.from_("listing-images").remove([img])
             except Exception:
                 pass
 
