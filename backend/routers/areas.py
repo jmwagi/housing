@@ -1,94 +1,65 @@
-"""
-  =====================================================
-  areas.py — Area API Routes (CRUD + Counts)
-  =====================================================
-  Manages neighbourhoods/estates in Embu:
-  - GET    /api/areas       → List areas with listing counts
-  - POST   /api/areas       → Create a new area
-  - DELETE /api/areas/{id}  → Delete an area
-
-  Areas are stored in their own database table so the
-  admin can add/remove them and dropdowns stay in sync.
-"""
-
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models import Listing, Area
 from backend.schemas import AreaInfo, AreaCreate
 
 router = APIRouter(prefix="/api/areas", tags=["areas"])
 
 
 @router.get("", response_model=list[AreaInfo])
-async def list_areas(db: AsyncSession = Depends(get_db)):
-    """
-    GET /api/areas
-    Returns all areas with listing counts, ordered
-    by most listings first. Only Embu listings count.
-    """
-    # Get all areas from the Area table
-    area_rows = await db.execute(select(Area).order_by(Area.name))
-    areas = area_rows.scalars().all()
+async def list_areas(db=Depends(get_db)):
+    areas = await db.select("areas", order="name")
+    listings = await db.select("listings", columns="area,city")
 
-    # Get listing counts per area (Embu only)
-    count_rows = await db.execute(
-        select(Listing.area, func.count(Listing.id).label("count"))
-        .where(Listing.city == "Embu")
-        .group_by(Listing.area)
-    )
-    counts = {row[0]: row[1] for row in count_rows.all()}
+    embu_counts = {}
+    for l in listings:
+        if l.get("city") == "Embu":
+            embu_counts[l["area"]] = embu_counts.get(l["area"], 0) + 1
 
     return [
-        AreaInfo(id=a.id, name=a.name, count=counts.get(a.name, 0), latitude=a.latitude, longitude=a.longitude)
+        AreaInfo(
+            id=a["id"],
+            name=a["name"],
+            count=embu_counts.get(a["name"], 0),
+            latitude=a.get("latitude"),
+            longitude=a.get("longitude"),
+        )
         for a in areas
     ]
 
 
 @router.post("", response_model=AreaInfo, status_code=201)
-async def create_area(
-    data: AreaCreate,
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    POST /api/areas
-    Create a new area. Name must be unique.
-    """
-    existing = await db.execute(select(Area).where(Area.name == data.name))
-    if existing.scalar_one_or_none():
+async def create_area(data: AreaCreate, db=Depends(get_db)):
+    existing = await db.select("areas", filters={"name": f"eq.{data.name}"})
+    if existing:
         raise HTTPException(status_code=400, detail="Area already exists")
 
-    area = Area(name=data.name, latitude=data.latitude, longitude=data.longitude)
-    db.add(area)
-    await db.commit()
-    await db.refresh(area)
-    return AreaInfo(id=area.id, name=area.name, count=0, latitude=area.latitude, longitude=area.longitude)
+    result = await db.insert("areas", data.model_dump(exclude_unset=True))
+    return AreaInfo(
+        id=result["id"],
+        name=result["name"],
+        count=0,
+        latitude=result.get("latitude"),
+        longitude=result.get("longitude"),
+    )
 
 
 @router.delete("/{area_id}", status_code=204)
-async def delete_area(
-    area_id: int,
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    DELETE /api/areas/{area_id}
-    Delete an area. Only succeeds if no listings use this area.
-    """
-    result = await db.execute(select(Area).where(Area.id == area_id))
-    area = result.scalar_one_or_none()
-    if not area:
+async def delete_area(area_id: int, db=Depends(get_db)):
+    areas = await db.select("areas", filters={"id": f"eq.{area_id}"})
+    if not areas:
         raise HTTPException(status_code=404, detail="Area not found")
 
-    # Check if any listings use this area
-    stmt = select(Listing).where(Listing.area == area.name).limit(1)
-    existing_listing = await db.execute(stmt)
-    if existing_listing.scalar_one_or_none():
+    area = areas[0]
+    listings = await db.select(
+        "listings",
+        filters={"area": f"eq.{area['name']}"},
+        limit=1,
+    )
+    if listings:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot delete area '{area.name}' — it still has active listings. Delete or reassign them first.",
+            detail=f"Cannot delete area '{area['name']}' — it still has active listings. Delete or reassign them first.",
         )
 
-    await db.delete(area)
-    await db.commit()
+    await db.delete("areas", {"id": f"eq.{area_id}"})

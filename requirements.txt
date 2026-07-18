@@ -1,11 +1,8 @@
 fastapi
 uvicorn
-sqlalchemy
-aiosqlite
-asyncpg
 python-multipart
 pydantic
-greenlet
+httpx
 passlib
 bcrypt==4.0.1
 python-jose[cryptography]

@@ -1,50 +1,11 @@
-/*
-  =====================================================
-  render.js — HTML Template Functions (Embu Edition)
-  =====================================================
-  Each function in this file returns an HTML string for
-  a specific page or component. The router calls these
-  functions and sets the #app element's innerHTML to
-  the returned string.
-
-  PATTERN: Template Functions
-  Instead of a templating library (Handlebars, Mustache),
-  we use template literals (backtick strings) with ${}
-  interpolation. This is clean enough for our use case
-  and requires no extra dependencies.
-
-  EMBU FOCUS:
-  This app is now focused on student housing in Embu,
-  specifically areas near University of Embu. There is
-  no city switcher — all listings are in Embu.
-*/
-
-
-/**
- * Show a loading spinner while data is being fetched.
- * The CSS .loading class styles this as centred italic text.
- */
 function renderLoading() {
     return '<div class="loading">Loading...</div>';
 }
 
-/**
- * Show an error message when something goes wrong.
- *
- * @param {string} message - The error description
- */
 function renderError(message) {
     return `<div class="error-state"><h3>Something went wrong</h3><p>${message}</p></div>`;
 }
 
-/**
- * Render a single listing card.
- * This is the reusable component used on both the
- * home page (featured listings) and the browse page.
- *
- * @param {object} listing - A listing object from the API
- * @returns {string} - HTML string for one card
- */
 function isFavorited(listingId) {
     return AppState.favoriteIds.has(listingId);
 }
@@ -91,22 +52,10 @@ function renderCard(listing) {
     `;
 }
 
-/**
- * Render the Home page (Embu Edition).
- * Shows:
- *   1. Hero section with search bar — Embu-specific messaging
- *   2. Area grid — clickable cards for each neighbourhood
- *   3. Featured listings — first 6 from all Embu listings
- */
 function renderHome() {
     const areas = AppState.areas;
-    const listings = AppState.listings.slice(0, 6); // only first 6
+    const listings = AppState.listings.slice(0, 6);
 
-    /*
-      Generate the area grid HTML.
-      Each area card navigates to #/browse?area=AreaName
-      so students can see all listings in that neighbourhood.
-    */
     const areaCards = areas.length
         ? areas.map(a => `
             <div class="city-card" onclick="navigate('#/browse?area=${encodeURIComponent(a.name)}')">
@@ -139,10 +88,6 @@ function renderHome() {
     `;
 }
 
-/**
- * Handle the home page search button.
- * Reads the search input and navigates to browse with the query.
- */
 function doHomeSearch() {
     const q = document.getElementById('home-search')?.value.trim();
     if (q) {
@@ -150,10 +95,6 @@ function doHomeSearch() {
     }
 }
 
-/**
- * Search from the browse page — reads the search input
- * and navigates to browse with the search query.
- */
 function doBrowseSearch() {
     const q = document.getElementById('browse-search-input')?.value.trim();
     if (q) {
@@ -164,16 +105,6 @@ function doBrowseSearch() {
     navigateToBrowse();
 }
 
-/**
- * Render the Browse page (Embu Edition).
- * Shows listings filtered by area, type, and price range.
- *
- * FILTERS AVAILABLE:
- * - Area: Any area, or a specific neighbourhood
- * - Type: Bedsit, Single Room, 1-Bedroom, or All
- * - Price: Ranges (Under 5K, 5-8K, 8K+) or Any
- * - Search: Text search across title, description, area
- */
 function renderBrowse() {
     const listings = AppState.listings;
     const activeType = AppState.filters.listing_type;
@@ -182,12 +113,10 @@ function renderBrowse() {
     const activeMax = AppState.filters.max_price;
     const activeArea = AppState.currentArea;
 
-    // Page title changes based on whether an area is selected
     const title = activeArea
         ? `Listings in ${activeArea}`
         : 'All Listings in Embu';
 
-    // Type filter dropdown
     const typeDropdown = `
         <select class="filter-select" onchange="setFilter('listing_type', this.value)">
             <option value="" ${!activeType ? 'selected' : ''}>All Types</option>
@@ -198,7 +127,6 @@ function renderBrowse() {
         </select>
     `;
 
-    // Price filter dropdown
     const priceDropdown = `
         <select class="filter-select" onchange="onPriceSelect(this.value)">
             <option value="" ${!activeMin && !activeMax ? 'selected' : ''}>Any Price</option>
@@ -212,7 +140,6 @@ function renderBrowse() {
         ? listings.map(renderCard).join('')
         : '<div class="empty-state">No listings match your filters. Try adjusting them!</div>';
 
-    // Area dropdown options
     const areaOptions = AppState.areas && AppState.areas.length
         ? `<option value="">All Areas</option>
             ${AppState.areas.map(a =>
@@ -245,14 +172,6 @@ function renderBrowse() {
     `;
 }
 
-/**
- * Render the Listing Detail page.
- * Shows full information for a single listing:
- * - Large image, price, title, location, verified badge
- * - Metadata grid (type, landlord, date)
- * - Description and amenities
- * - Contact form for the student to message the landlord
- */
 function renderDetail() {
     const l = AppState.currentListing;
     if (!l) return renderError('Listing not found.');
@@ -280,13 +199,6 @@ function renderDetail() {
 
     const description = l.description || 'No description provided.';
 
-    /*
-      Contact form — built into the detail page.
-      When submitted, it calls submitContact() from router.js
-      via the onsubmit attribute. The listing ID is passed
-      so the backend knows which landlord to notify.
-      Only logged-in users can send enquiries.
-    */
     const contactForm = AppState.isLoggedIn ? `
         <div class="contact-section">
             <h3><i class="fas fa-envelope"></i> Contact Landlord</h3>
@@ -351,13 +263,6 @@ function renderDetail() {
     `;
 }
 
-/**
- * Helper: generate area <option> tags from AppState.areas
- * with a hardcoded fallback if areas haven't been loaded.
- *
- * @param {string} selected - Currently selected area name (or empty)
- * @returns {string} - HTML option elements
- */
 function getAreaOptions(selected) {
     const areas = AppState.areas;
     if (areas.length) {
@@ -371,13 +276,6 @@ function getAreaOptions(selected) {
     ).join('');
 }
 
-/**
- * Render the Add Listing form (Embu Edition).
- * Since the app is Embu-focused:
- * - The city field is hidden (always "Embu")
- * - The area field is a dropdown of known neighbourhoods
- * Landlords submit rooms with photos via multipart/form-data.
- */
 function renderAddListing() {
     const nameValue = AppState.isLoggedIn && AppState.currentUser ? `value="${AppState.currentUser.full_name.replace(/"/g, '&quot;')}"` : '';
     const phoneValue = AppState.isLoggedIn && AppState.currentUser ? `value="${AppState.currentUser.phone.replace(/"/g, '&quot;')}"` : '';
@@ -461,10 +359,6 @@ function renderAddListing() {
     `;
 }
 
-
-/**
- * Render the Favorites / Saved Listings page.
- */
 function renderFavorites() {
     const favs = AppState.favorites || [];
 
@@ -490,10 +384,6 @@ function renderFavorites() {
     `;
 }
 
-/**
- * Render the About / Help page.
- * A static page with information for students and landlords.
- */
 function renderAbout() {
     return `
         <div class="about-container">
@@ -526,9 +416,6 @@ function renderAbout() {
     `;
 }
 
-/**
- * Render the Login page.
- */
 function renderLogin() {
     return `
         <div class="login-container">
@@ -555,9 +442,6 @@ function renderLogin() {
     `;
 }
 
-/**
- * Render the Registration page.
- */
 function renderRegister() {
     return `
         <div class="login-container">
@@ -610,12 +494,6 @@ function renderRegister() {
     `;
 }
 
-/**
- * Render the Admin Login page.
- * Shows a password form to access the admin dashboard.
- * On submit, calls adminLogin() from router.js which
- * checks against AppState.adminPassword.
- */
 function renderAdminLogin() {
     return `
         <div class="login-container">
@@ -635,27 +513,16 @@ function renderAdminLogin() {
     `;
 }
 
-/**
- * Render the Admin Dashboard.
- * Shows:
- *   1. Stats cards (total, verified, areas)
- *   2. Area management (add/remove areas)
- *   3. Change password
- *   4. Edit form (if a listing is selected for editing)
- *   5. Full listings table with management actions
- */
 function renderAdmin() {
     const listings = AppState.listings;
     const areas = AppState.areas;
     const editId = AppState.editingListingId;
     const editListing = editId ? listings.find(l => l.id === editId) : null;
 
-    // Stats calculations
     const totalListings = listings.length;
     const verifiedCount = listings.filter(l => l.verified).length;
     const areaCount = areas.length;
 
-    // Stats cards row
     const statsHtml = `
         <div class="admin-stats">
             <div class="admin-stat-card">
@@ -673,12 +540,10 @@ function renderAdmin() {
         </div>
     `;
 
-    // Area breakdown badges
     const areaBadges = areas.length
         ? areas.map(a => `<span class="admin-area-badge">${a.name}: ${a.count}</span>`).join('')
         : '<span style="color:#888;">No areas found.</span>';
 
-    // Area management section (add / remove areas)
     const areaManagementHtml = `
         <div class="admin-section">
             <h3>Manage Areas</h3>
@@ -702,7 +567,6 @@ function renderAdmin() {
         </div>
     `;
 
-    // Change password section
     const changePasswordHtml = `
         <div class="admin-section">
             <h3>Change Password</h3>
@@ -716,7 +580,6 @@ function renderAdmin() {
         </div>
     `;
 
-    // Images for the listing being edited
     const editImagesHtml = editListing && editListing.images
         ? `<div style="margin-bottom:0.8rem;">
             <label style="font-weight:600;font-size:0.9rem;display:block;margin-bottom:0.3rem;">Current Images</label>
@@ -729,7 +592,6 @@ function renderAdmin() {
         </div>`
         : '';
 
-    // Edit form (shown when a listing is selected for editing)
     const editFormHtml = editListing ? `
         <div class="admin-edit-panel">
             <h3>Editing: ${editListing.title}</h3>
@@ -788,7 +650,6 @@ function renderAdmin() {
         </div>
     ` : '';
 
-    // Build the listings table
     const tableRows = listings.length
         ? listings.map(l => {
             const isEditing = l.id === editId;
@@ -852,10 +713,6 @@ function renderAdmin() {
     `;
 }
 
-/**
- * Render the Landlord Dashboard (My Listings).
- * Shows the landlord's own listings with edit/delete actions.
- */
 function renderMyListings() {
     const listings = AppState.listings;
     const rows = listings.length
@@ -881,7 +738,6 @@ function renderMyListings() {
         }).join('')
         : '<tr><td colspan="7" style="text-align:center;color:#888;">You haven\'t listed any rooms yet.</td></tr>';
 
-    // Edit form when a listing is selected for editing
     const editId = AppState.editingListingId;
     const editListing = editId ? listings.find(l => l.id === editId) : null;
     const editFormHtml = editListing ? `
@@ -958,10 +814,6 @@ function renderMyListings() {
     `;
 }
 
-/**
- * Initialize the Leaflet map on the detail page.
- * Called from the router after renderDetail() sets the HTML.
- */
 function initDetailMap() {
     const el = document.getElementById('detail-map');
     if (!el) return;
@@ -1031,13 +883,6 @@ function renderPrivacy() {
                 <p>Your information is used to operate the platform, verify listings, facilitate communication between students and landlords, and improve our services.</p>
                 <h3>3. Data Sharing</h3>
                 <p>We do not sell your personal data. Listing information (including landlord contact details) is displayed publicly on the platform to enable students to inquire about properties.</p>
-                <h3>4. Data Security</h3>
-                <p>We implement reasonable security measures to protect your data. However, no online platform is 100% secure, and you share information at your own risk.</p>
-                <h3>5. Your Rights</h3>
-                <p>You may request deletion of your account and associated data by contacting us at <strong>help@keja-go.co.ke</strong>.</p>
-                <h3>6. Contact</h3>
-                <p>For questions about this policy, email <strong>help@keja-go.co.ke</strong>.</p>
-                <p style="margin-top:1.5rem;"><a href="#/register" onclick="navigate('#/register')">&larr; Back to registration</a></p>
             </div>
         </div>
     `;

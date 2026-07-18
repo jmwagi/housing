@@ -1,15 +1,10 @@
 {
-  "mcpServers": {
-    "supabase": {
-      "type": "http",
-      "url": "https://mcp.supabase.com/mcp?project_ref=abwrnzlzuaswcppmhggi&read_only=true"
-    },
-    "render": {
-      "type": "http",
-      "url": "https://mcp.render.com/mcp",
-      "headers": {
-        "Authorization": "Bearer <YOUR_RENDER_API_KEY>"
-      }
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "your-server-name": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-everything"],
+      "enabled": true
     }
   }
 }

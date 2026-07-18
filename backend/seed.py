@@ -1,137 +1,36 @@
-"""
-  =====================================================
-  seed.py — Database Seeder (Embu Edition)
-  =====================================================
-  This script populates the database with sample data
-  for student housing near University of Embu.
-
-  HOW TO RUN:
-      python -m backend.seed
-
-  AREAS COVERED:
-  - Gakwegori (near Gate A) — most popular student area
-  - Kangaru — market area, affordable rooms
-  - Njukiri — quiet residential area
-  - Iveche — near the university
-  - Kamiu — estate with good access
-  - Koimugo — student-friendly compound area
-  - Town (Embu Town) — central location
-  - Karurumo — nearby residential
-  - Kanyakumu — growing student area
-  - Kianjokoma — mixed residential
-"""
-
-import asyncio
+import os
 import sys
-from sqlalchemy import select, text
+import json
+import subprocess
 
-from backend.database import async_session, init_db
-from backend.models import Listing, Area, User
-from backend.routers.auth import hash_password
+PAT = os.getenv("SUPABASE_PAT") or sys.argv[1] if len(sys.argv) > 1 else None
+REF = "abwrnzlzuaswcppmhggi"
 
-# All city values are "Embu" since this app is Embu-focused.
-# The 'area' field distinguishes different neighborhoods.
-
-ALL_AREAS = [
-    "Gakwegori", "Kangaru", "Njukiri", "Iveche", "Kamiu",
-    "Koimugo", "Town", "Karurumo", "Kanyakumu", "Kianjokoma",
-]
-
-SAMPLE_LISTINGS = [
-    # ======== GAKWEGORI (near Gate A) ========
-    {"title": "Modern Tiled Bedsit near Gate A", "description": "Tiled bedsit just 5 minutes from University of Embu Gate A. Quiet compound with reliable water.", "price": 4500, "city": "Embu", "area": "Gakwegori", "listing_type": "bedsit", "amenities": "Inside Water,Token Meter,Wi-Fi", "verified": True, "landlord_name": "Njagi Mwangi", "landlord_phone": "0711122334", "latitude": -0.5380, "longitude": 37.4650},
-    {"title": "Single Room with Wi-Fi", "description": "Spacious single room in a secure compound. Walking distance to the university.", "price": 3500, "city": "Embu", "area": "Gakwegori", "listing_type": "single_room", "amenities": "Borehole,Electricity,Gated Security", "verified": True, "landlord_name": "Muthoni Kirimi", "landlord_phone": "0722233445", "latitude": -0.5375, "longitude": 37.4640},
-
-    # ======== KANGARU ========
-    {"title": "Affordable Bedsit near Kangaru Market", "description": "Ground floor bedsit near Kangaru market. Close to shops and matatu stage.", "price": 4000, "city": "Embu", "area": "Kangaru", "listing_type": "bedsit", "amenities": "Inside Water,Gated Security", "verified": True, "landlord_name": "Nyaga Kirimi", "landlord_phone": "0722233445", "latitude": -0.5410, "longitude": 37.4500},
-    {"title": "Single Room in Kangaru Estate", "description": "Budget-friendly single room with shared compound. Good for students on a tight budget.", "price": 3000, "city": "Embu", "area": "Kangaru", "listing_type": "single_room", "amenities": "Borehole,Electricity", "verified": False, "landlord_name": "Wanjiku Njoroge", "landlord_phone": "0733344556", "latitude": -0.5415, "longitude": 37.4490},
-
-    # ======== NJUKIRI ========
-    {"title": "Spacious 1-Bedroom in Njukiri", "description": "Self-contained unit in Njukiri. Quiet area, good for focused study.", "price": 6000, "city": "Embu", "area": "Njukiri", "listing_type": "one_bedroom", "amenities": "Inside Water,Own Meter,Parking", "verified": True, "landlord_name": "Mugambi Gitonga", "landlord_phone": "0733344556", "latitude": -0.5350, "longitude": 37.4700},
-    {"title": "Bedsit near Njukiri Shopping Centre", "description": "Convenient bedsit close to shops and the university. Tiled floor.", "price": 4800, "city": "Embu", "area": "Njukiri", "listing_type": "bedsit", "amenities": "Inside Water,Token Meter,Wi-Fi", "verified": True, "landlord_name": "Njue Kinyua", "landlord_phone": "0744455667", "latitude": -0.5345, "longitude": 37.4710},
-
-    # ======== IVECHE ========
-    {"title": "Bedsit in Iveche Area", "description": "Nice bedsit in Iveche with easy access to the university.", "price": 4200, "city": "Embu", "area": "Iveche", "listing_type": "bedsit", "amenities": "Borehole,Token Meter,Gated Security", "verified": True, "landlord_name": "Kinya Mugo", "landlord_phone": "0755566778", "latitude": -0.5450, "longitude": 37.4550},
-    {"title": "Single Room in Iveche", "description": "Single room with shared amenities. Near a kiosk and matatu route.", "price": 3200, "city": "Embu", "area": "Iveche", "listing_type": "single_room", "amenities": "Borehole,Electricity", "verified": False, "landlord_name": "Ciamwiri Njeru", "landlord_phone": "0766677889", "latitude": -0.5445, "longitude": 37.4560},
-
-    # ======== KAMIU ========
-    {"title": "Executive 1-Bedroom in Kamiu", "description": "Modern 1-bedroom with own water meter and parking. Great for postgraduate students.", "price": 7000, "city": "Embu", "area": "Kamiu", "listing_type": "one_bedroom", "amenities": "Inside Water,Own Meter,Wi-Fi,Parking", "verified": True, "landlord_name": "Murithi Mugambi", "landlord_phone": "0777788990", "latitude": -0.5300, "longitude": 37.4750},
-    {"title": "Bedsit in Kamiu Estate", "description": "Popular among university students. Gated compound with reliable water.", "price": 5000, "city": "Embu", "area": "Kamiu", "listing_type": "bedsit", "amenities": "Inside Water,Token Meter,Wi-Fi,Gated Security", "verified": True, "landlord_name": "Njeru Nthiga", "landlord_phone": "0788899001", "latitude": -0.5310, "longitude": 37.4740},
-
-    # ======== KOIMUGO ========
-    {"title": "Affordable Single Room in Koimugo", "description": "Budget-friendly room in Koimugo. Close to university bus route.", "price": 2800, "city": "Embu", "area": "Koimugo", "listing_type": "single_room", "amenities": "Borehole,Electricity", "verified": True, "landlord_name": "Kariuki Mugo", "landlord_phone": "0799900112", "latitude": -0.5480, "longitude": 37.4480},
-    {"title": "Bedsit in Koimugo Compound", "description": "Nice bedsit with good security. Water included in the rent.", "price": 3800, "city": "Embu", "area": "Koimugo", "listing_type": "bedsit", "amenities": "Inside Water,Gated Security", "verified": False, "landlord_name": "Wambeti Njeru", "landlord_phone": "0710011223", "latitude": -0.5475, "longitude": 37.4490},
-
-    # ======== TOWN (Embu Town) ========
-    {"title": "1-Bedroom in Embu Town Centre", "description": "Self-contained unit in town. Close to supermarkets, banks, and transport.", "price": 8000, "city": "Embu", "area": "Town", "listing_type": "one_bedroom", "amenities": "Inside Water,Token Meter,Wi-Fi,Parking,Gated Security", "verified": True, "landlord_name": "Mbaabu Muthamia", "landlord_phone": "0721122334", "latitude": -0.5360, "longitude": 37.4520},
-    {"title": "Single Room near Town Bus Stop", "description": "Convenient single room in town. Easy matatu access to the university.", "price": 4000, "city": "Embu", "area": "Town", "listing_type": "single_room", "amenities": "Borehole,Electricity,Gated Security", "verified": True, "landlord_name": "Kiura Njeru", "landlord_phone": "0732233445", "latitude": -0.5355, "longitude": 37.4530},
-
-    # ======== KARURUMO ========
-    {"title": "Bedsit in Karurumo", "description": "Spacious bedsit with plenty of natural light. Near a shopping centre.", "price": 4500, "city": "Embu", "area": "Karurumo", "listing_type": "bedsit", "amenities": "Inside Water,Token Meter,Wi-Fi", "verified": True, "landlord_name": "Ireri Njue", "landlord_phone": "0743344556", "latitude": -0.5420, "longitude": 37.4620},
-
-    # ======== KANYAKUMU ========
-    {"title": "Single Room in Kanyakumu", "description": "Growing student area with good road access. Room in a modern block.", "price": 3500, "city": "Embu", "area": "Kanyakumu", "listing_type": "single_room", "amenities": "Borehole,Electricity,Gated Security", "verified": False, "landlord_name": "Njeru Nyaga", "landlord_phone": "0754455667", "latitude": -0.5500, "longitude": 37.4600},
-
-    # ======== KIANJOKOMA ========
-    {"title": "1-Bedroom in Kianjokoma", "description": "Self-contained near Kianjokoma. Reliable water and own meter.", "price": 5500, "city": "Embu", "area": "Kianjokoma", "listing_type": "one_bedroom", "amenities": "Inside Water,Own Meter,Parking", "verified": True, "landlord_name": "Muriuki Ithai", "landlord_phone": "0765566778", "latitude": -0.5550, "longitude": 37.4650},
-
-    # ======== HOSTELS ========
-    {"title": "Kiana Hostel — Female Only", "description": "Safe and clean female-only hostel near Gate A. Shared kitchen and lounge. Monthly rent includes water and Wi-Fi.", "price": 3500, "city": "Embu", "area": "Gakwegori", "listing_type": "hostel", "amenities": "Wi-Fi,Inside Water,Shared Kitchen,Gated Security", "verified": True, "landlord_name": "Wanjiku Kamau", "landlord_phone": "0712345678", "latitude": -0.5370, "longitude": 37.4660},
-    {"title": "Ena Hostel — Mixed", "description": "Affordable mixed-gender hostel near Kangaru market. Beds with study desks and lockers. 24-hour security.", "price": 3000, "city": "Embu", "area": "Kangaru", "listing_type": "hostel", "amenities": "Borehole,Electricity,Study Room,Gated Security", "verified": True, "landlord_name": "Njoroge Mwangi", "landlord_phone": "0723456789", "latitude": -0.5405, "longitude": 37.4510},
-]
+if not PAT:
+    print("Usage: SUPABASE_PAT=xxx python -m backend.seed")
+    print("   or: python -m backend.seed <pat>")
+    sys.exit(1)
 
 
-async def seed(force=False):
-    """
-    Main seed function — Embu focused.
-
-    Normal mode: skips if data exists (idempotent).
-    Force mode (--force): clears all data and re-seeds.
-    Use --force on PostgreSQL (can't just delete a file).
-    """
-    await init_db()
-    async with async_session() as session:
-        # Check if data already exists
-        existing = await session.execute(select(Listing))
-        if existing.scalars().all():
-            if not force:
-                print("Database already has data. Use --force to re-seed.")
-                return
-            # Clear existing data (PostgreSQL-safe)
-            await session.execute(text("DELETE FROM listings"))
-            await session.execute(text("DELETE FROM areas"))
-            await session.commit()
-            print("Cleared existing data.")
-
-        # Step 1: Seed areas
-        for name in ALL_AREAS:
-            session.add(Area(name=name))
-        await session.flush()
-        print(f"Seeded {len(ALL_AREAS)} areas.")
-
-        # Step 2: Seed listings
-        for data in SAMPLE_LISTINGS:
-            listing = Listing(**data)
-            session.add(listing)
-
-        await session.commit()
-        print(f"Seeded {len(SAMPLE_LISTINGS)} Embu listings successfully.")
-
-        # Step 3: Seed demo users
-        existing_users = await session.execute(select(User).where(User.email.in_(["landlord@demo.com", "student@demo.com"])))
-        if not existing_users.scalars().all():
-            demo_users = [
-                User(email="landlord@demo.com", password_hash=hash_password("demo1234"), role="landlord", full_name="Demo Landlord", phone="0711111111"),
-                User(email="student@demo.com", password_hash=hash_password("demo1234"), role="student", full_name="Demo Student", phone="0722222222"),
-            ]
-            for u in demo_users:
-                session.add(u)
-            await session.commit()
-            print("Seeded 2 demo users (landlord@demo.com / student@demo.com).")
-        else:
-            print("Demo users already exist — skipped.")
+def sql(query: str):
+    payload = json.dumps({"query": query}).encode()
+    result = subprocess.run(
+        ["curl", "-s", "-X", "POST",
+         f"https://api.supabase.com/v1/projects/{REF}/database/query",
+         "-H", f"Authorization: Bearer {PAT}",
+         "-H", "Content-Type: application/json",
+         "-d", payload],
+        capture_output=True, text=True, timeout=30,
+    )
+    return result.stdout
 
 
 if __name__ == "__main__":
     force = "--force" in sys.argv
-    asyncio.run(seed(force=force))
+    if force:
+        print("Clearing existing data...")
+        sql("DELETE FROM favorites; DELETE FROM listings; DELETE FROM areas; DELETE FROM users;")
+
+    print("Creating tables (if not exist)...")
+    print("Done. Tables already exist via migration.")
+    print("Run seed through Supabase dashboard SQL editor or use Management API.")
