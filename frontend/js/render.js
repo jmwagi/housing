@@ -333,17 +333,13 @@ function renderAddListing() {
                     <label>Amenities</label>
                     <input type="text" id="add-amenities" placeholder="e.g. Wi-Fi, Inside Water, Gated Security">
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Latitude</label>
-                        <input type="text" id="add-latitude" placeholder="e.g. -0.5397 (optional)">
-                    </div>
-                    <div class="form-group">
-                        <label>Longitude</label>
-                        <input type="text" id="add-longitude" placeholder="e.g. 37.4598 (optional)">
-                    </div>
+                <div class="form-group">
+                    <label>Location on Map <span style="font-weight:normal;color:#888;">(click the map to pin)</span></label>
+                    <div id="add-map" style="height:250px;border-radius:6px;border:1px solid #ddd;margin-bottom:0.3rem;"></div>
+                    <p id="add-coords-display" style="font-size:0.8rem;color:#888;"><i class="fas fa-map-marker-alt" style="color:#e74c3c;"></i> Click on the map to pin the exact location of your room.</p>
+                    <input type="hidden" id="add-lat-hidden">
+                    <input type="hidden" id="add-lng-hidden">
                 </div>
-                <p style="font-size:0.8rem;color:#888;margin-top:-0.5rem;margin-bottom:1rem;"><i class="fas fa-map-marker-alt" style="color:#e74c3c;"></i> Pin your listing on the map. <a href="https://www.google.com/maps" target="_blank">Open Google Maps</a>, right-click your location and select <em>"What's here?"</em> to get coordinates.</p>
                 <div class="form-group">
                     <label>Photos *</label>
                     <input type="file" id="add-images" accept="image/*" multiple capture="environment" required>
@@ -498,10 +494,10 @@ function renderRegister() {
                         <label>Password</label>
                         <input type="password" id="reg-password" required minlength="4" placeholder="At least 4 characters">
                     </div>
-                    <div class="form-group" style="font-size:0.85rem;">
-                        <label style="display:flex;align-items:flex-start;gap:8px;font-weight:normal;cursor:pointer;">
-                            <input type="checkbox" id="reg-terms" style="margin-top:3px;">
-                            I agree to the <a href="#/terms" onclick="navigate('#/terms')">Terms of Service</a> and <a href="#/privacy" onclick="navigate('#/privacy')">Privacy Policy</a>
+                    <div class="form-group reg-terms-group">
+                        <label class="reg-terms-label">
+                            <input type="checkbox" id="reg-terms">
+                            <span>I agree to the <a href="#/terms" onclick="navigate('#/terms')">Terms of Service</a> and <a href="#/privacy" onclick="navigate('#/privacy')">Privacy Policy</a></span>
                         </label>
                     </div>
                     <button type="submit" class="btn btn-primary btn-block">Create Account</button>
@@ -1051,6 +1047,46 @@ function initDetailMap() {
 
     el._leaflet_map = map;
     setTimeout(() => map.invalidateSize(), 200);
+}
+
+function initAddMap() {
+    const el = document.getElementById('add-map');
+    if (!el || el._leaflet_map) return;
+
+    const defaultLat = -0.5397;
+    const defaultLng = 37.4598;
+
+    const map = L.map(el, { zoomControl: true }).setView([defaultLat, defaultLng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19,
+    }).addTo(map);
+
+    let marker = null;
+    const latInput = document.getElementById('add-lat-hidden');
+    const lngInput = document.getElementById('add-lng-hidden');
+    const display = document.getElementById('add-coords-display');
+
+    map.on('click', function(e) {
+        const lat = e.latlng.lat.toFixed(6);
+        const lng = e.latlng.lng.toFixed(6);
+        if (marker) {
+            marker.setLatLng(e.latlng);
+        } else {
+            marker = L.marker(e.latlng, { draggable: true }).addTo(map);
+            marker.on('dragend', function() {
+                const pos = marker.getLatLng();
+                latInput.value = pos.lat.toFixed(6);
+                lngInput.value = pos.lng.toFixed(6);
+                display.innerHTML = '<i class="fas fa-map-marker-alt" style="color:#2E7D32;"></i> Pinned: ' + pos.lat.toFixed(4) + ', ' + pos.lng.toFixed(4);
+            });
+        }
+        latInput.value = lat;
+        lngInput.value = lng;
+        display.innerHTML = '<i class="fas fa-map-marker-alt" style="color:#2E7D32;"></i> Pinned: ' + lat + ', ' + lng;
+    });
+    el._leaflet_map = map;
+    setTimeout(() => map.invalidateSize(), 300);
 }
 
 function renderTerms() {

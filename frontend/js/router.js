@@ -77,6 +77,7 @@ async function router() {
                     AppState.areas = await apiGetAreas();
                 } catch (_) {}
                 app.innerHTML = renderAddListing();
+                setTimeout(initAddMap, 100);
                 break;
 
             case '/login':
@@ -208,7 +209,13 @@ function updateNav() {
     const publicLinks = document.getElementById('public-nav-links');
     const container = document.getElementById('auth-nav-links');
     if (!container || !publicLinks) return;
-    if (AppState.isLoggedIn && AppState.currentUser) {
+    if (AppState.adminLoggedIn) {
+        publicLinks.style.display = 'none';
+        container.innerHTML = `
+            <a href="#/jadmin" onclick="navigate('#/jadmin')" style="color:#FF9800;font-weight:600;">Admin</a>
+            <a href="#/" onclick="adminLogout()">Logout</a>
+        `;
+    } else if (AppState.isLoggedIn && AppState.currentUser) {
         if (AppState.userRole === 'landlord') {
             publicLinks.style.display = 'none';
             container.innerHTML = `
@@ -253,8 +260,8 @@ async function submitListing(event) {
         formData.append('landlord_name', document.getElementById('add-landlord-name').value.trim());
         formData.append('landlord_phone', document.getElementById('add-landlord-phone').value.trim());
 
-        const lat = document.getElementById('add-latitude')?.value.trim();
-        const lng = document.getElementById('add-longitude')?.value.trim();
+        const lat = document.getElementById('add-lat-hidden')?.value.trim();
+        const lng = document.getElementById('add-lng-hidden')?.value.trim();
         if (lat) formData.append('latitude', lat);
         if (lng) formData.append('longitude', lng);
 
@@ -267,8 +274,7 @@ async function submitListing(event) {
         }
 
         await apiCreateListing(formData);
-        resultDiv.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle" style="color:#2E7D32;"></i> Listing submitted for review! It will appear once approved by an admin.</div>';
-        event.target.reset();
+        navigate('#/my-listings');
     } catch (err) {
         resultDiv.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
     } finally {

@@ -138,9 +138,13 @@ async def admin_reset_password(data: AdminResetPassword, db=Depends(get_db)):
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
 async def register(data: UserCreate, db=Depends(get_db)):
-    existing = await db.select("users", filters={"email": f"eq.{data.email}"})
-    if existing:
+    existing_email = await db.select("users", filters={"email": f"eq.{data.email}"})
+    if existing_email:
         raise HTTPException(status_code=400, detail="Email already registered")
+
+    existing_phone = await db.select("users", filters={"phone": f"eq.{data.phone}"})
+    if existing_phone:
+        raise HTTPException(status_code=400, detail="Phone number already registered")
 
     if data.role not in ("student", "landlord"):
         raise HTTPException(status_code=400, detail="Role must be 'student' or 'landlord'")
