@@ -410,7 +410,13 @@ function renderAbout() {
             </div>
             <div class="about-card">
                 <h2><i class="fas fa-phone" style="color:#2E7D32;"></i> Contact Us</h2>
-                <p>Have feedback or need help? Reach out to us at <strong>help@keja-go.co.ke</strong></p>
+                <p>Have feedback or need help? Reach out to us on WhatsApp:</p>
+                <p style="margin-top:0.5rem;">
+                    <a href="https://wa.me/254799307739" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:0.5rem;background:#25D366;color:white;padding:0.7rem 1.5rem;border-radius:6px;font-weight:600;font-size:1rem;">
+                        <i class="fab fa-whatsapp" style="font-size:1.3rem;"></i> Chat with us on WhatsApp
+                    </a>
+                </p>
+                <p style="margin-top:0.8rem;font-size:0.85rem;color:#888;">Our team is available Monday–Saturday, 8 AM – 6 PM. We typically respond within a few hours.</p>
             </div>
         </div>
     `;
@@ -430,6 +436,9 @@ function renderLogin() {
                     <div class="form-group">
                         <label>Password</label>
                         <input type="password" id="login-password" required placeholder="Enter your password">
+                    </div>
+                    <div style="text-align:right;margin-bottom:1rem;">
+                        <a href="https://wa.me/254799307739?text=Hello%20Keja%20Go%2C%20I%20need%20help%20resetting%20my%20password" target="_blank" rel="noopener noreferrer" style="font-size:0.85rem;color:#25D366;"><i class="fab fa-whatsapp"></i> Forgot password?</a>
                     </div>
                     <button type="submit" class="btn btn-primary btn-block">Sign In</button>
                     <div id="login-error" style="color:#c62828;margin-top:0.8rem;display:none;"></div>
@@ -513,6 +522,44 @@ function renderAdminLogin() {
     `;
 }
 
+function renderAdminUsers() {
+    const users = AppState.allUsers || [];
+    const rows = users.length
+        ? users.map(u => `
+            <tr>
+                <td>${u.id}</td>
+                <td>${u.full_name}</td>
+                <td>${u.email}</td>
+                <td>${u.phone || '-'}</td>
+                <td><span class="admin-role-badge ${u.role}">${u.role}</span></td>
+                <td>${new Date(u.created_at).toLocaleDateString()}</td>
+            </tr>
+        `).join('')
+        : '<tr><td colspan="6" style="text-align:center;color:#888;">No registered users yet.</td></tr>';
+
+    return `
+        <div class="admin-section">
+            <h3><i class="fas fa-users" style="color:#2E7D32;"></i> Registered Users</h3>
+            <p class="admin-hint">All students and landlords registered on the platform.</p>
+            <div class="admin-table-wrapper">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Role</th>
+                            <th>Registered</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
 function renderAdminResetPassword() {
     const users = AppState.allUsers || [];
     const options = users.length
@@ -542,9 +589,11 @@ function renderAdmin() {
     const editId = AppState.editingListingId;
     const editListing = editId ? listings.find(l => l.id === editId) : null;
 
+    const users = AppState.allUsers || [];
     const totalListings = listings.length;
     const verifiedCount = listings.filter(l => l.verified).length;
     const areaCount = areas.length;
+    const userCount = users.length;
 
     const statsHtml = `
         <div class="admin-stats">
@@ -555,6 +604,10 @@ function renderAdmin() {
             <div class="admin-stat-card">
                 <span class="admin-stat-number">${verifiedCount}</span>
                 <span class="admin-stat-label">Verified</span>
+            </div>
+            <div class="admin-stat-card">
+                <span class="admin-stat-number">${userCount}</span>
+                <span class="admin-stat-label">Users</span>
             </div>
             <div class="admin-stat-card">
                 <span class="admin-stat-number">${areaCount}</span>
@@ -688,6 +741,7 @@ function renderAdmin() {
                     <td>KSh ${l.price.toLocaleString()}</td>
                     <td>${l.listing_type}</td>
                     <td>${l.landlord_name}</td>
+                    <td>${l.landlord_phone}</td>
                     <td>${verifiedLabel}</td>
                     <td class="admin-actions">
                         <button class="btn btn-sm" onclick="navigate('#/listing/${l.id}')"><i class="fas fa-eye"></i> View</button>
@@ -700,7 +754,7 @@ function renderAdmin() {
                 </tr>
             `;
         }).join('')
-        : '<tr><td colspan="8" style="text-align:center;color:#888;">No listings found.</td></tr>';
+        : '<tr><td colspan="9" style="text-align:center;color:#888;">No listings found.</td></tr>';
 
     return `
         <div class="admin-container">
@@ -712,6 +766,7 @@ function renderAdmin() {
                 <p>Manage listings and areas on Keja Go. Use the table below to edit, verify, or delete listings. Use the <strong>Manage Areas</strong> section to add or remove neighbourhoods — new areas appear immediately in the add-listing form dropdown.</p>
             </div>
             ${statsHtml}
+            ${renderAdminUsers()}
             ${areaManagementHtml}
             ${renderAdminResetPassword()}
             ${changePasswordHtml}
@@ -726,6 +781,7 @@ function renderAdmin() {
                             <th>Price</th>
                             <th>Type</th>
                             <th>Landlord</th>
+                            <th>Phone</th>
                             <th>Verified</th>
                             <th>Actions</th>
                         </tr>

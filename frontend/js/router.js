@@ -205,7 +205,7 @@ function updateNav() {
                 <a href="#/logout" onclick="navigate('#/logout')">Logout</a>
             `;
         } else {
-            publicLinks.style.display = '';
+            publicLinks.style.display = 'none';
             container.innerHTML = `
                 <span style="color:#2E7D32;font-size:0.85rem;margin-right:0.5rem;">${AppState.currentUser.full_name}</span>
                 <a href="#/favorites" onclick="navigate('#/favorites')">Saved</a>
