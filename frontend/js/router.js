@@ -2,7 +2,7 @@ import { AppState } from './state.js';
 import {
     apiGetListings, apiGetListing, apiCreateListing, apiUpdateListing, apiDeleteListing,
     apiGetAreas, apiCreateArea, apiDeleteArea,
-    apiContactLandlord, apiRegister, apiLogin, apiGetMe, apiGetUsers, apiResetPassword,
+    apiRegister, apiLogin, apiGetMe, apiGetUsers, apiResetPassword,
     apiAdminLogin, apiGetLandlordEnquiries, apiGetLandlords, apiGetFavorites,
     apiAddFavorite, apiRemoveFavorite,
 } from './api.js';
@@ -305,30 +305,7 @@ export async function submitListing(event) {
 }
 window.submitListing = submitListing;
 
-export async function submitContact(event, listingId) {
-    event.preventDefault();
-    const resultDiv = document.getElementById('contact-result');
-    const btn = event.target.querySelector('button[type="submit"]');
-    btn.disabled = true;
-    btn.textContent = 'Sending...';
 
-    try {
-        const data = {
-            student_name: document.getElementById('contact-name').value.trim(),
-            student_phone: document.getElementById('contact-phone').value.trim(),
-            message: document.getElementById('contact-msg').value.trim(),
-        };
-        const res = await apiContactLandlord(listingId, data);
-        resultDiv.innerHTML = `<div class="alert alert-success">${res.message}</div>`;
-        event.target.reset();
-    } catch (err) {
-        resultDiv.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Send Enquiry';
-    }
-}
-window.submitContact = submitContact;
 
 export async function handleLogin() {
     const email = document.getElementById('login-email').value.trim();

@@ -218,33 +218,19 @@ export function renderDetail() {
     const shareText = encodeURIComponent(`Check out this room in ${l.area}: ${l.title} - KSh ${l.price.toLocaleString()}/month`);
     const shareWhatsApp = `https://wa.me/?text=${shareText}%20${shareUrl}`;
 
-    const contactForm = AppState.isLoggedIn ? `
-        <div class="contact-section">
-            <h3><i class="fas fa-envelope"></i> Contact Landlord</h3>
-            <form id="contact-form" onsubmit="submitContact(event, ${l.id})">
-                <div class="form-group">
-                    <label>Your Name</label>
-                    <input type="text" id="contact-name" required placeholder="e.g. John Kimani">
-                </div>
-                <div class="form-group">
-                    <label>Your Phone Number</label>
-                    <input type="tel" id="contact-phone" required placeholder="e.g. 0712345678">
-                </div>
-                <div class="form-group">
-                    <label>Message (optional)</label>
-                    <textarea id="contact-msg" placeholder="Hi, I'm interested in this room. Is it still available?"></textarea>
-                </div>
-                <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-paper-plane"></i> Send Enquiry</button>
-            </form>
-            <div id="contact-result" style="margin-top:1rem;"></div>
-        </div>
-    ` : `
-        <div class="contact-section" style="text-align:center;padding:1.5rem;background:#f9f9f9;border-radius:8px;">
-            <p style="margin-bottom:0.8rem;"><i class="fas fa-sign-in-alt" style="font-size:1.5rem;color:#2E7D32;"></i></p>
-            <p style="font-weight:600;color:#333;">Sign in to contact the landlord</p>
-            <p style="font-size:0.9rem;color:#888;margin-bottom:1rem;">Create a free account to send enquiries and save your favourite listings.</p>
-            <a href="#/login" onclick="navigate('#/login')" class="btn btn-primary" style="text-decoration:none;display:inline-block;"><i class="fas fa-sign-in-alt"></i> Sign In</a>
-            <a href="#/register" onclick="navigate('#/register')" class="btn" style="text-decoration:none;display:inline-block;margin-left:0.5rem;background:#eee;"><i class="fas fa-user-plus"></i> Join Free</a>
+    const landlordPhone = l.landlord_phone || '';
+    const waLink = `https://wa.me/${landlordPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi, I'm interested in "${l.title}" in ${l.area}. Is it still available?`)}`;
+
+    const contactSection = `
+        <div class="contact-section" style="text-align:center;padding:1.5rem;background:#e8f5e9;border-radius:8px;border:1px solid #c8e6c9;">
+            <h3 style="color:#2E7D32;margin-bottom:1rem;"><i class="fas fa-user"></i> Contact Landlord</h3>
+            <p style="font-size:1.1rem;font-weight:600;margin-bottom:0.3rem;">${l.landlord_name}</p>
+            <p style="font-size:1.3rem;font-weight:700;color:#2E7D32;margin-bottom:1.2rem;">${landlordPhone}</p>
+            <div style="display:flex;gap:0.8rem;justify-content:center;flex-wrap:wrap;">
+                <a href="tel:${landlordPhone}" class="btn btn-primary" style="text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;"><i class="fas fa-phone-alt"></i> Call</a>
+                <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;background:#25D366;color:white;"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+            </div>
+            <p style="font-size:0.85rem;color:#666;margin-top:1rem;">Contact the landlord directly for enquiries and viewing arrangements.</p>
         </div>
     `;
 
@@ -279,7 +265,7 @@ export function renderDetail() {
                         <p id="distance-text" style="font-size:0.85rem;color:#555;margin-top:0.3rem;"></p>
                     </div>
                     ` : ''}
-                    ${contactForm}
+                    ${contactSection}
                 </div>
             </div>
         </div>
