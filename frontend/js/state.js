@@ -1,4 +1,4 @@
-const AppState = {
+export const AppState = {
     currentArea: null,
     currentListing: null,
     listings: [],
@@ -25,3 +25,4 @@ const AppState = {
         search: null,
     },
 };
+window.AppState = AppState;

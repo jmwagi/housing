@@ -1,6 +1,8 @@
+import { AppState } from './state.js';
+
 const API_BASE = '/api';
 
-async function apiFetch(path, options = {}) {
+export async function apiFetch(path, options = {}) {
     const url = `${API_BASE}${path}`;
     const headers = { 'Accept': 'application/json', ...options.headers };
 
@@ -20,8 +22,9 @@ async function apiFetch(path, options = {}) {
     if (res.status === 204) return null;
     return res.json();
 }
+window.apiFetch = apiFetch;
 
-function apiGetListings(params = {}) {
+export function apiGetListings(params = {}) {
     const qs = new URLSearchParams();
     if (params.city) qs.set('city', params.city);
     if (params.area) qs.set('area', params.area);
@@ -36,12 +39,14 @@ function apiGetListings(params = {}) {
     const query = qs.toString();
     return apiFetch(`/listings${query ? '?' + query : ''}`);
 }
+window.apiGetListings = apiGetListings;
 
-function apiGetListing(id) {
+export function apiGetListing(id) {
     return apiFetch(`/listings/${id}`);
 }
+window.apiGetListing = apiGetListing;
 
-async function apiCreateListing(formData) {
+export async function apiCreateListing(formData) {
     const headers = {};
     if (AppState.authToken) {
         headers['Authorization'] = `Bearer ${AppState.authToken}`;
@@ -59,115 +64,135 @@ async function apiCreateListing(formData) {
     }
     return res.json();
 }
+window.apiCreateListing = apiCreateListing;
 
-function apiUpdateListing(id, data) {
+export function apiUpdateListing(id, data) {
     return apiFetch(`/listings/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
 }
+window.apiUpdateListing = apiUpdateListing;
 
-function apiDeleteListing(id) {
+export function apiDeleteListing(id) {
     return apiFetch(`/listings/${id}`, { method: 'DELETE' });
 }
+window.apiDeleteListing = apiDeleteListing;
 
-function apiGetAreas() {
+export function apiGetAreas() {
     return apiFetch('/areas');
 }
+window.apiGetAreas = apiGetAreas;
 
-function apiCreateArea(name) {
+export function apiCreateArea(name) {
     return apiFetch('/areas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
     });
 }
+window.apiCreateArea = apiCreateArea;
 
-function apiDeleteArea(id) {
+export function apiDeleteArea(id) {
     return apiFetch(`/areas/${id}`, { method: 'DELETE' });
 }
+window.apiDeleteArea = apiDeleteArea;
 
-function apiContactLandlord(listingId, data) {
+export function apiContactLandlord(listingId, data) {
     return apiFetch(`/contact/${listingId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
 }
+window.apiContactLandlord = apiContactLandlord;
 
-function apiRegister(data) {
+export function apiRegister(data) {
     return apiFetch('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
 }
+window.apiRegister = apiRegister;
 
-function apiLogin(data) {
+export function apiLogin(data) {
     return apiFetch('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
 }
+window.apiLogin = apiLogin;
 
-function apiGetMe() {
+export function apiGetMe() {
     return apiFetch('/auth/me');
 }
+window.apiGetMe = apiGetMe;
 
-function apiGetFavorites() {
+export function apiGetFavorites() {
     return apiFetch('/favorites');
 }
+window.apiGetFavorites = apiGetFavorites;
 
-function apiAddFavorite(listingId) {
+export function apiAddFavorite(listingId) {
     return apiFetch(`/favorites/${listingId}`, { method: 'POST' });
 }
+window.apiAddFavorite = apiAddFavorite;
 
-function apiRemoveFavorite(listingId) {
+export function apiRemoveFavorite(listingId) {
     return apiFetch(`/favorites/${listingId}`, { method: 'DELETE' });
 }
+window.apiRemoveFavorite = apiRemoveFavorite;
 
-function apiGetUsers(adminKey) {
+export function apiGetUsers(adminKey) {
     return apiFetch('/auth/users', {
         headers: { 'X-Admin-Key': adminKey },
     });
 }
+window.apiGetUsers = apiGetUsers;
 
-function apiResetPassword(userId, newPassword, adminKey) {
+export function apiResetPassword(userId, newPassword, adminKey) {
     return apiFetch('/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, new_password: newPassword, admin_key: adminKey }),
     });
 }
+window.apiResetPassword = apiResetPassword;
 
-function apiAdminLogin(adminKey) {
+export function apiAdminLogin(adminKey) {
     return apiFetch('/auth/admin-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ admin_key: adminKey }),
     });
 }
+window.apiAdminLogin = apiAdminLogin;
 
-function apiGetLandlordEnquiries() {
+export function apiGetLandlordEnquiries() {
     return apiFetch('/contact/landlord-enquiries');
 }
+window.apiGetLandlordEnquiries = apiGetLandlordEnquiries;
 
-function apiGetLandlords() {
+export function apiGetLandlords() {
     return apiFetch('/auth/landlords');
 }
+window.apiGetLandlords = apiGetLandlords;
 
-function imageUrl(filename) {
+export function imageUrl(filename) {
     if (!filename) return '';
     if (filename.startsWith('http')) return filename;
     return `https://abwrnzlzuaswcppmhggi.supabase.co/storage/v1/object/public/listing-images/${filename}`;
 }
+window.imageUrl = imageUrl;
 
-async function apiFetchWithAdmin(path, options = {}) {
+export async function apiFetchWithAdmin(path, options = {}) {
     const headers = { ...options.headers };
     if (AppState.adminToken) {
         headers['Authorization'] = `Bearer ${AppState.adminToken}`;
     }
     return apiFetch(path, { ...options, headers });
 }
+window.apiFetchWithAdmin = apiFetchWithAdmin;

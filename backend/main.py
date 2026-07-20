@@ -43,9 +43,11 @@ async def health():
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
-os.makedirs(str(FRONTEND_DIR), exist_ok=True)
+DIST_DIR = FRONTEND_DIR / "dist"
+STATIC_DIR = str(DIST_DIR if DIST_DIR.exists() else FRONTEND_DIR)
+os.makedirs(STATIC_DIR, exist_ok=True)
 
-if FRONTEND_DIR.exists():
+if Path(STATIC_DIR).exists():
 
     class NoCacheStaticFiles(StaticFiles):
         async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -66,6 +68,6 @@ if FRONTEND_DIR.exists():
 
     app.mount(
         "/",
-        NoCacheStaticFiles(directory=str(FRONTEND_DIR), html=True),
+        NoCacheStaticFiles(directory=STATIC_DIR, html=True),
         name="frontend",
     )

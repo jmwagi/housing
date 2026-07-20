@@ -1,6 +1,22 @@
-function navigate(hash) {
+import { AppState } from './state.js';
+import {
+    apiGetListings, apiGetListing, apiCreateListing, apiUpdateListing, apiDeleteListing,
+    apiGetAreas, apiCreateArea, apiDeleteArea,
+    apiContactLandlord, apiRegister, apiLogin, apiGetMe, apiGetUsers, apiResetPassword,
+    apiAdminLogin, apiGetLandlordEnquiries, apiGetLandlords, apiGetFavorites,
+    apiAddFavorite, apiRemoveFavorite,
+} from './api.js';
+import {
+    renderHome, renderError, renderLoading, renderBrowse, renderDetail, renderAddListing,
+    renderFavorites, renderAbout, renderLogin, renderRegister,
+    renderAdminLogin, renderAdmin, renderMyListings, renderInbox,
+    initDetailMap, initAddMap, renderTerms, renderPrivacy,
+} from './render.js';
+
+export function navigate(hash) {
     window.location.hash = hash;
 }
+window.navigate = navigate;
 
 function getRouteParams() {
     const hash = window.location.hash.slice(1) || '/';
@@ -23,7 +39,7 @@ function getRouteParams() {
     return { path: route, params };
 }
 
-async function router() {
+export async function router() {
     const { path, params } = getRouteParams();
     const app = document.getElementById('app');
 
@@ -169,8 +185,9 @@ async function router() {
         app.innerHTML = renderError(err.message);
     }
 }
+window.router = router;
 
-function setFilter(key, value) {
+export function setFilter(key, value) {
     if (key === 'area') {
         AppState.currentArea = value || null;
     } else {
@@ -178,6 +195,7 @@ function setFilter(key, value) {
     }
     navigateToBrowse();
 }
+window.setFilter = setFilter;
 
 function setPriceFilter(min, max) {
     AppState.filters.min_price = min;
@@ -185,7 +203,7 @@ function setPriceFilter(min, max) {
     navigateToBrowse();
 }
 
-function onPriceSelect(value) {
+export function onPriceSelect(value) {
     if (!value) {
         setPriceFilter(null, null);
         return;
@@ -195,8 +213,9 @@ function onPriceSelect(value) {
     const max = parts[1] ? Number(parts[1]) : null;
     setPriceFilter(min || null, max);
 }
+window.onPriceSelect = onPriceSelect;
 
-function navigateToBrowse() {
+export function navigateToBrowse() {
     let hash = '#/browse';
     const params = [];
     if (AppState.currentArea) params.push(`area=${encodeURIComponent(AppState.currentArea)}`);
@@ -204,8 +223,9 @@ function navigateToBrowse() {
     if (params.length) hash += '?' + params.join('&');
     navigate(hash);
 }
+window.navigateToBrowse = navigateToBrowse;
 
-function updateNav() {
+export function updateNav() {
     const publicLinks = document.getElementById('public-nav-links');
     const container = document.getElementById('auth-nav-links');
     if (!container || !publicLinks) return;
@@ -240,8 +260,9 @@ function updateNav() {
         `;
     }
 }
+window.updateNav = updateNav;
 
-async function submitListing(event) {
+export async function submitListing(event) {
     event.preventDefault();
     const resultDiv = document.getElementById('add-result');
     const btn = event.target.querySelector('button[type="submit"]');
@@ -282,8 +303,9 @@ async function submitListing(event) {
         btn.textContent = 'Submit Listing';
     }
 }
+window.submitListing = submitListing;
 
-async function submitContact(event, listingId) {
+export async function submitContact(event, listingId) {
     event.preventDefault();
     const resultDiv = document.getElementById('contact-result');
     const btn = event.target.querySelector('button[type="submit"]');
@@ -306,8 +328,9 @@ async function submitContact(event, listingId) {
         btn.textContent = 'Send Enquiry';
     }
 }
+window.submitContact = submitContact;
 
-async function handleLogin() {
+export async function handleLogin() {
     const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
     const error = document.getElementById('login-error');
@@ -335,8 +358,9 @@ async function handleLogin() {
         error.style.display = 'block';
     }
 }
+window.handleLogin = handleLogin;
 
-async function handleRegister() {
+export async function handleRegister() {
     const name = document.getElementById('reg-name').value.trim();
     const email = document.getElementById('reg-email').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
@@ -385,8 +409,9 @@ async function handleRegister() {
         error.style.display = 'block';
     }
 }
+window.handleRegister = handleRegister;
 
-async function restoreSession() {
+export async function restoreSession() {
     if (!AppState.authToken) {
         const adminToken = localStorage.getItem('admin_token');
         if (adminToken) {
@@ -409,18 +434,21 @@ async function restoreSession() {
         localStorage.removeItem('auth_token');
     }
 }
+window.restoreSession = restoreSession;
 
-function editListing(id) {
+export function editListing(id) {
     AppState.editingListingId = id;
     router();
 }
+window.editListing = editListing;
 
-function cancelEdit() {
+export function cancelEdit() {
     AppState.editingListingId = null;
     router();
 }
+window.cancelEdit = cancelEdit;
 
-async function saveEdit(id) {
+export async function saveEdit(id) {
     const btn = document.querySelector('#admin-edit-form button[type="submit"]');
     btn.disabled = true;
     btn.textContent = 'Saving...';
@@ -445,8 +473,9 @@ async function saveEdit(id) {
         btn.textContent = 'Save Changes';
     }
 }
+window.saveEdit = saveEdit;
 
-async function toggleVerify(id, currentVerified) {
+export async function toggleVerify(id, currentVerified) {
     try {
         await apiUpdateListing(id, { verified: !currentVerified });
         router();
@@ -454,8 +483,9 @@ async function toggleVerify(id, currentVerified) {
         alert('Error toggling verification: ' + err.message);
     }
 }
+window.toggleVerify = toggleVerify;
 
-async function deleteListing(id) {
+export async function deleteListing(id) {
     if (!confirm('Are you sure you want to delete this listing? This cannot be undone.')) {
         return;
     }
@@ -469,8 +499,9 @@ async function deleteListing(id) {
         alert('Error deleting listing: ' + err.message);
     }
 }
+window.deleteListing = deleteListing;
 
-async function addArea() {
+export async function addArea() {
     const input = document.getElementById('admin-new-area-name');
     const name = input.value.trim();
     if (!name) return;
@@ -486,8 +517,9 @@ async function addArea() {
         resultDiv.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
     }
 }
+window.addArea = addArea;
 
-async function deleteArea(id) {
+export async function deleteArea(id) {
     if (!confirm('Are you sure you want to delete this area?')) {
         return;
     }
@@ -501,8 +533,9 @@ async function deleteArea(id) {
         resultDiv.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
     }
 }
+window.deleteArea = deleteArea;
 
-async function adminLogin() {
+export async function adminLogin() {
     const input = document.getElementById('admin-login-password');
     const error = document.getElementById('admin-login-error');
     const pw = input ? input.value : '';
@@ -538,8 +571,9 @@ async function adminLogin() {
         }
     }
 }
+window.adminLogin = adminLogin;
 
-function adminLogout() {
+export function adminLogout() {
     AppState.adminLoggedIn = false;
     AppState.adminToken = null;
     localStorage.removeItem('admin_token');
@@ -551,8 +585,9 @@ function adminLogout() {
         navigate('#/');
     }
 }
+window.adminLogout = adminLogout;
 
-async function adminResetPassword() {
+export async function adminResetPassword() {
     const userId = parseInt(document.getElementById('reset-user-id').value);
     const newPassword = document.getElementById('reset-new-password').value;
     const resultDiv = document.getElementById('admin-reset-result');
@@ -571,8 +606,9 @@ async function adminResetPassword() {
         resultDiv.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
     }
 }
+window.adminResetPassword = adminResetPassword;
 
-async function adminAddListing() {
+export async function adminAddListing() {
     const resultDiv = document.getElementById('admin-add-result');
     const btn = document.querySelector('#admin-add-listing-form button[type="submit"]');
     btn.disabled = true;
@@ -613,18 +649,21 @@ async function adminAddListing() {
         btn.textContent = 'Create Listing';
     }
 }
+window.adminAddListing = adminAddListing;
 
-async function editMyListing(id) {
+export async function editMyListing(id) {
     AppState.editingListingId = id;
     router();
 }
+window.editMyListing = editMyListing;
 
-function cancelMyEdit() {
+export function cancelMyEdit() {
     AppState.editingListingId = null;
     router();
 }
+window.cancelMyEdit = cancelMyEdit;
 
-async function saveMyEdit(id) {
+export async function saveMyEdit(id) {
     const btn = document.querySelector('#my-edit-form button[type="submit"]');
     btn.disabled = true;
     btn.textContent = 'Saving...';
@@ -649,8 +688,9 @@ async function saveMyEdit(id) {
         btn.textContent = 'Save Changes';
     }
 }
+window.saveMyEdit = saveMyEdit;
 
-async function deleteMyListing(id) {
+export async function deleteMyListing(id) {
     if (!confirm('Delete this listing? This cannot be undone.')) return;
     try {
         await apiDeleteListing(id);
@@ -661,8 +701,9 @@ async function deleteMyListing(id) {
         alert('Error: ' + err.message);
     }
 }
+window.deleteMyListing = deleteMyListing;
 
-async function toggleAvailable(id, currentAvailable) {
+export async function toggleAvailable(id, currentAvailable) {
     try {
         await apiUpdateListing(id, { available: currentAvailable === false ? true : false });
         const myListings = await apiGetListings({ owner_id: AppState.currentUser.id });
@@ -672,8 +713,9 @@ async function toggleAvailable(id, currentAvailable) {
         alert('Error toggling availability: ' + err.message);
     }
 }
+window.toggleAvailable = toggleAvailable;
 
-async function loadFavoriteIds() {
+export async function loadFavoriteIds() {
     if (!AppState.isLoggedIn) {
         AppState.favoriteIds = new Set();
         return;
@@ -685,8 +727,9 @@ async function loadFavoriteIds() {
         AppState.favoriteIds = new Set();
     }
 }
+window.loadFavoriteIds = loadFavoriteIds;
 
-async function toggleFavorite(listingId) {
+export async function toggleFavorite(listingId) {
     if (!AppState.isLoggedIn) {
         navigate('#/login');
         return;
@@ -707,3 +750,4 @@ async function toggleFavorite(listingId) {
         alert('Error updating favorite: ' + err.message);
     }
 }
+window.toggleFavorite = toggleFavorite;

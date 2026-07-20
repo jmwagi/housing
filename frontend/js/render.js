@@ -1,16 +1,22 @@
-function renderLoading() {
+import { AppState } from './state.js';
+import { imageUrl } from './api.js';
+
+export function renderLoading() {
     return '<div class="loading">Loading...</div>';
 }
+window.renderLoading = renderLoading;
 
-function renderError(message) {
+export function renderError(message) {
     return `<div class="error-state"><h3>Something went wrong</h3><p>${message}</p></div>`;
 }
+window.renderError = renderError;
 
-function isFavorited(listingId) {
+export function isFavorited(listingId) {
     return AppState.favoriteIds.has(listingId);
 }
+window.isFavorited = isFavorited;
 
-function renderCard(listing) {
+export function renderCard(listing) {
     const imgStyle = listing.images
         ? `style="background-image: url('${imageUrl(listing.images.split(',')[0])}');"`
         : '';
@@ -55,8 +61,9 @@ function renderCard(listing) {
         </div>
     `;
 }
+window.renderCard = renderCard;
 
-function renderHome() {
+export function renderHome() {
     const areas = AppState.areas;
     const listings = AppState.listings.slice(0, 6);
 
@@ -91,15 +98,17 @@ function renderHome() {
         </div>
     `;
 }
+window.renderHome = renderHome;
 
-function doHomeSearch() {
+export function doHomeSearch() {
     const q = document.getElementById('home-search')?.value.trim();
     if (q) {
         navigate(`#/browse?search=${encodeURIComponent(q)}`);
     }
 }
+window.doHomeSearch = doHomeSearch;
 
-function doBrowseSearch() {
+export function doBrowseSearch() {
     const q = document.getElementById('browse-search-input')?.value.trim();
     if (q) {
         AppState.filters.search = q;
@@ -108,8 +117,9 @@ function doBrowseSearch() {
     }
     navigateToBrowse();
 }
+window.doBrowseSearch = doBrowseSearch;
 
-function renderBrowse() {
+export function renderBrowse() {
     const listings = AppState.listings;
     const activeType = AppState.filters.listing_type;
     const activeSearch = AppState.filters.search || '';
@@ -175,8 +185,9 @@ function renderBrowse() {
         </div>
     `;
 }
+window.renderBrowse = renderBrowse;
 
-function renderDetail() {
+export function renderDetail() {
     const l = AppState.currentListing;
     if (!l) return renderError('Listing not found.');
 
@@ -274,8 +285,9 @@ function renderDetail() {
         </div>
     `;
 }
+window.renderDetail = renderDetail;
 
-function getAreaOptions(selected) {
+export function getAreaOptions(selected) {
     const areas = AppState.areas;
     if (areas.length) {
         return areas.map(a =>
@@ -287,8 +299,9 @@ function getAreaOptions(selected) {
         `<option value="${a}"${a === selected ? ' selected' : ''}>${a}</option>`
     ).join('');
 }
+window.getAreaOptions = getAreaOptions;
 
-function renderAddListing() {
+export function renderAddListing() {
     const nameValue = AppState.isLoggedIn && AppState.currentUser ? `value="${AppState.currentUser.full_name.replace(/"/g, '&quot;')}"` : '';
     const phoneValue = AppState.isLoggedIn && AppState.currentUser ? `value="${AppState.currentUser.phone.replace(/"/g, '&quot;')}"` : '';
     return `
@@ -367,8 +380,9 @@ function renderAddListing() {
         </div>
     `;
 }
+window.renderAddListing = renderAddListing;
 
-function renderFavorites() {
+export function renderFavorites() {
     const favs = AppState.favorites || [];
 
     if (!favs.length) {
@@ -392,8 +406,9 @@ function renderFavorites() {
         </div>
     `;
 }
+window.renderFavorites = renderFavorites;
 
-function renderAbout() {
+export function renderAbout() {
     return `
         <div class="about-container">
             <div class="about-card">
@@ -430,8 +445,9 @@ function renderAbout() {
         </div>
     `;
 }
+window.renderAbout = renderAbout;
 
-function renderLogin() {
+export function renderLogin() {
     return `
         <div class="login-container">
             <div class="login-card">
@@ -462,8 +478,9 @@ function renderLogin() {
         </div>
     `;
 }
+window.renderLogin = renderLogin;
 
-function renderRegister() {
+export function renderRegister() {
     return `
         <div class="login-container">
             <div class="login-card" style="max-width:480px;">
@@ -517,8 +534,9 @@ function renderRegister() {
         </div>
     `;
 }
+window.renderRegister = renderRegister;
 
-function renderAdminLogin() {
+export function renderAdminLogin() {
     return `
         <div class="login-container">
             <div class="login-card">
@@ -539,8 +557,9 @@ function renderAdminLogin() {
         </div>
     `;
 }
+window.renderAdminLogin = renderAdminLogin;
 
-function renderAdminUsers() {
+export function renderAdminUsers() {
     const users = AppState.allUsers || [];
     const rows = users.length
         ? users.map(u => `
@@ -577,8 +596,9 @@ function renderAdminUsers() {
         </div>
     `;
 }
+window.renderAdminUsers = renderAdminUsers;
 
-function renderAdminResetPassword() {
+export function renderAdminResetPassword() {
     const users = AppState.allUsers || [];
     const options = users.length
         ? `<option value="">Select a user...</option>
@@ -600,8 +620,9 @@ function renderAdminResetPassword() {
         </div>
     `;
 }
+window.renderAdminResetPassword = renderAdminResetPassword;
 
-function renderAdminAddListing() {
+export function renderAdminAddListing() {
     const landlords = AppState.landlords || [];
     const landlordOptions = landlords.length
         ? `<option value="">No owner (general listing)</option>
@@ -674,8 +695,9 @@ function renderAdminAddListing() {
         </div>
     `;
 }
+window.renderAdminAddListing = renderAdminAddListing;
 
-function renderAdmin() {
+export function renderAdmin() {
     const listings = AppState.listings;
     const areas = AppState.areas;
     const editId = AppState.editingListingId;
@@ -875,8 +897,9 @@ function renderAdmin() {
         </div>
     `;
 }
+window.renderAdmin = renderAdmin;
 
-function renderMyListings() {
+export function renderMyListings() {
     const listings = AppState.listings;
     const rows = listings.length
         ? listings.map(l => {
@@ -990,8 +1013,9 @@ function renderMyListings() {
         </div>
     `;
 }
+window.renderMyListings = renderMyListings;
 
-function renderInbox() {
+export function renderInbox() {
     const enquiries = AppState.enquiries || [];
     const rows = enquiries.length
         ? enquiries.map(e => `
@@ -1031,8 +1055,9 @@ function renderInbox() {
         </div>
     `;
 }
+window.renderInbox = renderInbox;
 
-function initDetailMap() {
+export function initDetailMap() {
     const el = document.getElementById('detail-map');
     if (!el) return;
 
@@ -1064,8 +1089,9 @@ function initDetailMap() {
     el._leaflet_map = map;
     setTimeout(() => map.invalidateSize(), 200);
 }
+window.initDetailMap = initDetailMap;
 
-function locateMe() {
+export function locateMe() {
     if (!navigator.geolocation) {
         alert('Geolocation is not supported by your browser.');
         return;
@@ -1087,8 +1113,9 @@ function locateMe() {
         { enableHighAccuracy: true, timeout: 10000 }
     );
 }
+window.locateMe = locateMe;
 
-function initAddMap() {
+export function initAddMap() {
     const el = document.getElementById('add-map');
     if (!el || el._leaflet_map) return;
 
@@ -1131,8 +1158,9 @@ function initAddMap() {
     el._leaflet_map = map;
     setTimeout(() => map.invalidateSize(), 300);
 }
+window.initAddMap = initAddMap;
 
-function renderTerms() {
+export function renderTerms() {
     return `
         <div class="about-container">
             <div class="about-card">
@@ -1155,8 +1183,9 @@ function renderTerms() {
         </div>
     `;
 }
+window.renderTerms = renderTerms;
 
-function renderPrivacy() {
+export function renderPrivacy() {
     return `
         <div class="about-container">
             <div class="about-card">
@@ -1172,3 +1201,4 @@ function renderPrivacy() {
         </div>
     `;
 }
+window.renderPrivacy = renderPrivacy;

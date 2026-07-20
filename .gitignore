@@ -9,3 +9,5 @@ Procfile
 runtime.txt
 scenario.md
 GO-TO-MARKET.md
+node_modules/
+frontend/dist/
